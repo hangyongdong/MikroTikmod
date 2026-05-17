@@ -38,7 +38,7 @@ jobs:
           CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
           CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
           VERSION: ${{ inputs.version }}
-          ARCH: 'arm64'
+          ARCH: 'mmips'
         run: |
           echo "1. 下载 RouterOS NPK..."
           curl -L -# -O "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/${VERSION}-${ARCH}/routeros-${VERSION}-${ARCH}.npk"
@@ -56,7 +56,7 @@ jobs:
           CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
           CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
           VERSION: ${{ inputs.version }}
-          ARCH: 'arm64'
+          ARCH: 'mmips'
         run: |
           echo "3. 下载All Packages..."
           # 修复 2：将全角双引号 “” 修正为标准英文半角双引号 ""
