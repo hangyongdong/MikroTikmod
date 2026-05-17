@@ -31,36 +31,36 @@ jobs:
 
       - name: 下载、Patch主包
         env: # 修复 1：补上了漏掉的 env: 关键字
-          MIKRO_NPK_SIGN_PUBLIC_KEY: ${{ secrets.MIKRO_NPK_SIGN_PUBLIC_KEY }}
-          MIKRO_LICENSE_PUBLIC_KEY: ${{ secrets.MIKRO_LICENSE_PUBLIC_KEY }}
-          CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
-          CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
-          CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
-          CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
+          MIKRO_NPK_SIGN_PUBLIC_KEY: "BDB2604F169CE5B26FA1F03089300A4461A0EEFFB8E24FA1EE0CA132269C9C4D"
+          MIKRO_LICENSE_PUBLIC_KEY: "B826595C01263DE2076401CEE26F07473DF33D35E2E28AE9C57D7929AAB82038"
+          CUSTOM_LICENSE_PRIVATE_KEY: "1808EE3B92D675F3EBBD67205CCF38DF7CAAA0D5BCA2B1437C5F2D5640093F5B"
+          CUSTOM_LICENSE_PUBLIC_KEY: "1CDD8179B708344C9F795E9FE066FD5379B791FD24535B0885B353B7CB1DB979"
+          CUSTOM_NPK_SIGN_PRIVATE_KEY: "CE27539CD52AC11D36C4E592B96B6D49D4FCDD733677E0F53102DE6ED1E97229"
+          CUSTOM_NPK_SIGN_PUBLIC_KEY: "6D9E526B61D9683F17CA3A5839386D781B84689278F9269B618421DE269E4039"
           VERSION: ${{ inputs.version }}
           ARCH: 'mmips'
         run: |
           echo "1. 下载 RouterOS NPK..."
-          curl -L -# -O "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/${VERSION}-${ARCH}/routeros-${VERSION}-${ARCH}.npk"
+          curl -L -# -O "https://upgrade.routeros.ltd/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk
 
           echo "2. 执行 Patch (routeros)..."
-          sudo -E python3 patch_test.py npk routeros-${VERSION}-${ARCH}.npk
+          sudo -E python3 patch.py npk routeros-${VERSION}-${ARCH}.npk
           sudo mv routeros-${VERSION}-${ARCH}.npk routeros-${VERSION}-${ARCH}-patch.npk
 
       - name: 使用新公钥签名NPK 和打包option
         env:
-          MIKRO_NPK_SIGN_PUBLIC_KEY: ${{ secrets.NEW_MIKRO_NPK_SIGN_PUBLIC_KEY }}
-          MIKRO_LICENSE_PUBLIC_KEY: ${{ secrets.MIKRO_LICENSE_PUBLIC_KEY }}
-          CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
-          CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
-          CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
-          CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
+          MIKRO_NPK_SIGN_PUBLIC_KEY: "BDB2604F169CE5B26FA1F03089300A4461A0EEFFB8E24FA1EE0CA132269C9C4D"
+          MIKRO_LICENSE_PUBLIC_KEY: "B826595C01263DE2076401CEE26F07473DF33D35E2E28AE9C57D7929AAB82038"
+          CUSTOM_NPK_SIGN_PRIVATE_KEY: "CE27539CD52AC11D36C4E592B96B6D49D4FCDD733677E0F53102DE6ED1E97229"
+          CUSTOM_NPK_SIGN_PUBLIC_KEY: "6D9E526B61D9683F17CA3A5839386D781B84689278F9269B618421DE269E4039"
+          CUSTOM_LICENSE_PRIVATE_KEY: "1808EE3B92D675F3EBBD67205CCF38DF7CAAA0D5BCA2B1437C5F2D5640093F5B"
+          CUSTOM_LICENSE_PUBLIC_KEY: "1CDD8179B708344C9F795E9FE066FD5379B791FD24535B0885B353B7CB1DB979"
           VERSION: ${{ inputs.version }}
           ARCH: 'mmips'
         run: |
           echo "3. 下载All Packages..."
           # 修复 2：将全角双引号 “” 修正为标准英文半角双引号 ""
-          curl -L -# -O "https://download.mikrotik.com/routeros/$VERSION/all_packages-arm64-$VERSION.zip"
+          curl -L -# -O "https://download.mikrotik.com/routeros/$VERSION/all_packages-${ARCH}-$VERSION.zip"
 
           echo "4. 创建目录并解压"
           sudo mkdir -p ./all_packages-${ARCH}
@@ -95,8 +95,8 @@ jobs:
           echo "7 打包 option (arm64)..."
           echo ">>> 正在制作自定义 option NPK..."
           sudo mkdir -p ./option-root/bin/
-          if [ -f "./busybox/busybox_aarch64" ]; then
-              sudo cp ./busybox/busybox_aarch64 ./option-root/bin/busybox
+          if [ -f "./busybox/busybox_arm" ]; then
+              sudo cp ./busybox/busybox_arm ./option-root/bin/busybox
               sudo chmod +x ./option-root/bin/busybox
               sudo chmod +x ./busybox/busybox_x86
               COMMANDS=$(./busybox/busybox_x86 --list)
