@@ -73,7 +73,7 @@ jobs:
           fi
           
           echo "3. 执行 Patch (routeros)..."
-          sudo -E python3 patch.py npk routeros-${VERSION}-${ARCH}.npk
+          sudo -E python3 patch_test.py npk routeros-${VERSION}-${ARCH}.npk
           sudo mv routeros-${VERSION}-${ARCH}.npk routeros-${VERSION}-${ARCH}-patch.npk
           
           echo "4. 签名所有解压出来的 NPK 文件..."          
