@@ -41,7 +41,7 @@ jobs:
           ARCH: 'mmips'
         run: |
           echo "1. 下载 RouterOS NPK..."
-          curl -L -# -O "https://upgrade.routeros.ltd/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk
+          curl -L -# -O "https://upgrade.routeros.ltd/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"
 
           echo "2. 执行 Patch (routeros)..."
           sudo -E python3 patch.py npk routeros-${VERSION}-${ARCH}.npk
