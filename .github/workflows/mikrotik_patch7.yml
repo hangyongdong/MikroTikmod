@@ -133,11 +133,11 @@ jobs:
       - name: 自动发布到 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ inputs.version }}-arm64
-          name: RouterOS v${{ inputs.version }} Patched (arm64)
+          tag_name: v${{ inputs.version }}-${ARCH}
+          name: RouterOS v${{ inputs.version }} Patched (${ARCH})
           body_path: changelog.txt 
           files: |
-            routeros-${{ inputs.version }}-arm64-patch.npk
-            all_packages-arm64-${{ inputs.version }}-patched.zip
+            routeros-${{ inputs.version }}-${ARCH}-patch.npk
+            all_packages-${ARCH}-${{ inputs.version }}-patched.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
