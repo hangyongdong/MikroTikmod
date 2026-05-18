@@ -46,6 +46,7 @@ jobs:
           curl -L -# -O "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/${VERSION}-${ARCH}/routeros-${VERSION}-${ARCH}.npk"
 
           echo "2. 执行 Patch (routeros)..."
+          # 确保 patch_test.py 在仓库根目录且文件名完全一致
           sudo -E python3 patch_test.py npk routeros-${VERSION}-${ARCH}.npk
           sudo mv routeros-${VERSION}-${ARCH}.npk routeros-${VERSION}-${ARCH}-patch.npk
 
@@ -89,140 +90,6 @@ jobs:
               sudo rm -f "$WIFI_FILE"
               sudo rm -f "$WIRE_FILE"
               sudo rm -f "$WIFIBE_FILE"
-              
-          fi
-
-          echo "7 打包 option (arm64)..."
-          echo ">>> 正在制作自定义 option NPK..."
-          sudo mkdir -p ./option-root/bin/
-          if [ -f "./busybox/busybox_aarch64" ]; then
-              sudo cp ./busybox/busybox_aarch64 ./option-root/bin/busybox
-              sudo chmod +x ./option-root/bin/busybox
-              sudo chmod +x ./busybox/busybox_x86
-              COMMANDS=$(./busybox/busybox_x86 --list)
-              for cmd in $COMMANDS; do
-                  sudo ln -sf /pckg/option/bin/busybox ./option-root/bin/$cmd
-              done
-          fi
-          sudo mksquashfs option-root option.sfs -quiet -comp xz -no-xattrs -b 256k
-
-          TEMPLATE_NPK=$(find ./all_packages-${ARCH} -name "gps-*.npk" | head -n 1)
-          if [ -z "$TEMPLATE_NPK" ]; then 
-              TEMPLATE_NPK="routeros-${VERSION}-${ARCH}-patch.npk"
-          fi
-
-          sudo -E python3 npk.py create \
-              "$TEMPLATE_NPK" \
-              "./all_packages-${ARCH}/option-${VERSION}-${ARCH}.npk" \
-              option \
-              ./option.sfs \
-              -desc="busybox for arm64"
-
-          echo "8. 重新生成全量压缩包..."
-          cd ./all_packages-${ARCH}
-          sudo zip ../all_packages-${ARCH}-${VERSION}-patched.zip *.npk >/dev/null
-          cd ..
-          
-          echo "9. 获取 CHANGELOG..."
-          curl -sL "https://download.mikrotik.com/routeros/${VERSION}/CHANGELOG" > changelog.txt
-          
-          sudo rm -rf ./all_packages-${ARCH}
-          sudo rm all_packages-${ARCH}-${VERSION}.zip
-
-      - name: 下载并 Patch Netinstall 工具
-        env:
-          MIKRO_NPK_SIGN_PUBLIC_KEY: name: MikroTik RouterOS test
-
-on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'RouterOS 版本 (例如: 7.21.3)'
-        required: true
-        type: string
-
-permissions:
-  contents: write
-
-jobs:
-  patch-and-pack:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 检出代码仓库
-        uses: actions/checkout@v4
-
-      - name: 设置 Python 环境
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: 安装基础依赖
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y zip unzip wget curl squashfs-tools
-
-      - name: 下载、Patch主包
-        env: 
-          MIKRO_NPK_SIGN_PUBLIC_KEY: ${{ secrets.MIKRO_NPK_SIGN_PUBLIC_KEY }}
-          MIKRO_LICENSE_PUBLIC_KEY: ${{ secrets.MIKRO_LICENSE_PUBLIC_KEY }}
-          CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
-          CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
-          CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
-          CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
-          MIKRO_UPGRADE_URL: ${{ secrets.MIKRO_UPGRADE_URL }}
-          CUSTOM_UPGRADE_URL: ${{ secrets.CUSTOM_UPGRADE_URL }}
-          VERSION: ${{ inputs.version }}
-          ARCH: 'arm64'
-        run: |
-          echo "1. 下载 RouterOS NPK..."
-          curl -L -# -O "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/${VERSION}-${ARCH}/routeros-${VERSION}-${ARCH}.npk"
-
-          echo "2. 执行 Patch (routeros)..."
-          sudo -E python3 patch_test.py npk routeros-${VERSION}-${ARCH}.npk
-          sudo mv routeros-${VERSION}-${ARCH}.npk routeros-${VERSION}-${ARCH}-patch.npk
-
-      - name: 使用新公钥签名NPK 和打包option
-        env:
-          MIKRO_NPK_SIGN_PUBLIC_KEY: ${{ secrets.NEW_MIKRO_NPK_SIGN_PUBLIC_KEY }}
-          MIKRO_LICENSE_PUBLIC_KEY: ${{ secrets.MIKRO_LICENSE_PUBLIC_KEY }}
-          CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
-          CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
-          CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
-          CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
-          VERSION: ${{ inputs.version }}
-          ARCH: 'arm64'
-        run: |
-          echo "3. 下载All Packages..."
-          curl -L -# -O "https://download.mikrotik.com/routeros/$VERSION/all_packages-arm64-$VERSION.zip"
-
-          echo "4. 创建目录并解压"
-          sudo mkdir -p ./all_packages-${ARCH}
-          sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages-${ARCH}/
-          
-          MAIN_NPK_IN_ZIP="./all_packages-${ARCH}/routeros-${VERSION}-${ARCH}.npk"
-          if [ -f "$MAIN_NPK_IN_ZIP" ]; then
-              sudo rm -f "$MAIN_NPK_IN_ZIP"
-          fi
-
-          echo "5. 签名当前所有 NPK 文件..."          
-          NPK_FILES=$(find ./all_packages-${ARCH} -name "*.npk")
-          for file in $NPK_FILES; do
-              sudo -E python3 npk.py sign "$file" "$file"
-          done
-
-          echo "6 处理 wifi-qcom 驱动替换..."
-          WIFI_FILE="./all_packages-${ARCH}/wifi-qcom-${VERSION}-${ARCH}.npk"
-          WIFIBE_FILE="./all_packages-${ARCH}/wifi-qcom-be-${VERSION}-${ARCH}.npk"
-          WIRE_FILE="./all_packages-${ARCH}/wireless-${VERSION}-${ARCH}.npk"
-          WIFI_FILE_X="./all_packages-${ARCH}/wifi-qcom-${VERSION}-${ARCH}-X.npk"
-          WIFI_FILE_R="./all_packages-${ARCH}/wifi-qcom-${VERSION}-${ARCH}-R.npk"
-          if [ -f "$WIFI_FILE" ]; then
-              sudo -E python3 roswifi.py -i "$WIFI_FILE" -b ./bdwlanX ./bdwlanR -o "$WIFI_FILE_X" "$WIFI_FILE_R"
-              sudo rm -f "$WIFI_FILE"
-              sudo rm -f "$WIRE_FILE"
-              sudo rm -f "$WIFIBE_FILE"
-              
           fi
 
           echo "7 打包 option (arm64)..."
@@ -266,43 +133,6 @@ jobs:
         env:
           MIKRO_NPK_SIGN_PUBLIC_KEY: ${{ secrets.NEW_MIKRO_NPK_SIGN_PUBLIC_KEY }}
           MIKRO_LICENSE_PUBLIC_KEY: ${{ secrets.NEW_MIKRO_LICENSE_PUBLIC_KEY }}
-          CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
-          CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
-          CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
-          CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
-          VERSION: ${{ inputs.version }}
-        run: |
-          echo "1. 下载官方 Netinstall 工具..."
-          sudo wget -nv -O netinstall.zip "https://download.mikrotik.com/routeros/${VERSION}/netinstall-${VERSION}.zip"
-          sudo wget -nv -O netinstall.tar.gz "https://download.mikrotik.com/routeros/${VERSION}/netinstall-${VERSION}.tar.gz"
-
-          echo "2. 解压并补丁 Windows 版本 (netinstall.exe)..."
-          sudo unzip -q netinstall.zip
-          sudo -E python3 patch_test.py netinstall netinstall.exe
-          sudo zip -q netinstall-${VERSION}.zip ./netinstall.exe
-
-          echo "3. 解压并补丁 Linux 版本 (netinstall-cli)..."
-          sudo tar -xzf netinstall.tar.gz
-          sudo -E python3 patch_test.py netinstall netinstall-cli
-          sudo tar -czf netinstall-${VERSION}.tar.gz ./netinstall-cli
-
-          echo "4. 清理临时解压文件"
-          sudo rm -f ./netinstall.exe ./netinstall-cli ./netinstall.zip ./netinstall.tar.gz
-
-      - name: 自动发布到 GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ inputs.version }}-arm64
-          name: RouterOS v${{ inputs.version }} Patched (arm64)
-          body_path: changelog.txt 
-          files: |
-            routeros-${{ inputs.version }}-arm64-patch.npk
-            all_packages-arm64-${{ inputs.version }}-patched.zip
-            netinstall-${{ inputs.version }}.zip
-            netinstall-${{ inputs.version }}.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MIKRO_LICENSE_PUBLIC_KEY: ${{ secrets.MIKRO_LICENSE_PUBLIC_KEY }}
           CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
           CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
           CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
