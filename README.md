@@ -8,4 +8,4 @@
    all_packages中R结尾的wifi-qcom包适用于红米ax5和ax6
 
 ### 激活：
-   安装option包自动L6授权
+   激活请加QQ群：173015615，群公告有激活网址
