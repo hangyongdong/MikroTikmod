@@ -94,39 +94,28 @@ jobs:
           fi
 
           echo "7 打包 option (arm64)..."
-          echo ">>> 正在静态编译 mihomo (基于源码根目录)..."
+          echo ">>> 正在自动获取官方最新 Linux ARM64 版 mihomo..."
           
-          # 提前创建目标目录
           sudo mkdir -p ./option-root/bin/
           
-          # 1. 清理并克隆源码
-          sudo rm -rf mihomo
-          git clone https://github.com/MetaCubeX/mihomo.git --depth=1
-          cd mihomo
+          # 动态抓取最新的 Alpha linux-arm64 版本的直链 (过滤掉 freebsd 和 compatible 等版本)
+          DOWNLOAD_URL=$(curl -s https://api.github.com/repos/MetaCubeX/mihomo/releases/tags/Prerelease-Alpha | grep -o 'https://[^"]*mihomo-linux-arm64-alpha-[a-z0-9]*\.gz' | head -n 1)
           
-          # 2. 强制开启 Go Modules 模式（关键点：让 Go 识别官方自带的 go.mod）
-          export GO111MODULE=on
-          
-          # 3. 直接在根目录执行静态编译（不需要 cd 到任何子目录，不需要 init）
-          CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -extldflags '-static'" -o mihomo_bin .
-          
-          # 4. 检查编译产物并移动
-          if [ -f "mihomo_bin" ]; then
-              sudo cp ./mihomo_bin ../option-root/bin/mihomo
-              sudo chmod +x ../option-root/bin/mihomo
-              echo ">>> mihomo 静态编译并复制成功！"
-          else
-              echo "!!! 编译失败，未生成二进制文件"
+          if [ -z "$DOWNLOAD_URL" ]; then
+              echo "!!! 获取下载链接失败，请检查网络或 GitHub API 限制"
               exit 1
           fi
           
-          # 5. 回到上级目录，清理源码文件夹
-          cd ..
-          sudo rm -rf mihomo
+          echo "获取到的下载链接: $DOWNLOAD_URL"
+          
+          # 下载并解压到目标目录
+          sudo wget -O mihomo.gz -nv "$DOWNLOAD_URL"
+          sudo gunzip -c mihomo.gz > ./option-root/bin/mihomo
+          sudo chmod +x ./option-root/bin/mihomo
+          sudo rm -f mihomo.gz
           
           echo ">>> 正在制作自定义 option NPK..."
           
-          # 6. 处理 busybox
           if [ -f "./busybox/busybox_aarch64" ]; then
               sudo cp ./busybox/busybox_aarch64 ./option-root/bin/busybox
               sudo chmod +x ./option-root/bin/busybox
@@ -137,8 +126,8 @@ jobs:
               done
           fi
           
-          # 7. 打包 sfs (加上 -all-root 确保 ROS 权限正确)
-          sudo mksquashfs option-root option.sfs -quiet -comp xz -no-xattrs -b 256k
+          # 打包时加上 -all-root 确保 ROS 环境下的权限正确
+          sudo mksquashfs option-root option.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
 
           TEMPLATE_NPK=$(find ./all_packages-${ARCH} -name "gps-*.npk" | head -n 1)
           if [ -z "$TEMPLATE_NPK" ]; then 
