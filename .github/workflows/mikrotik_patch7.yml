@@ -94,13 +94,29 @@ jobs:
           fi
 
           echo "7 打包 option (arm64)..."
+          # 1. 设置 Go 环境
+          export GOPATH=$HOME/go
+          export PATH=$PATH:$GOPATH/bin
+          
+          # 2. 克隆并进行静态编译
+          # 使用 --depth=1 减少下载量
+          git clone https://github.com/MetaCubeX/mihomo.git --depth=1
+          cd mihomo
+          
+          # 关键：CGO_ENABLED=1 配合 -extldflags '-static' 实现真正的静态链接
+          # 这能解决你在 ROS 上遇到的 Segmentation fault
+          CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -extldflags '-static'" -o mihomo
+          
+          # 验证是否为静态链接
+          file ./mihomo
+          
+          # 3. 移动到目标位置
+          sudo mkdir -p ../option-root/bin/
+          sudo cp ./mihomo ../option-root/bin/mihomo
+          sudo chmod +x ../option-root/bin/mihomo
+          cd ..
+          sudo rm -rf mihomo
           echo ">>> 正在制作自定义 option NPK..."
-          sudo mkdir -p ./option-root/bin/
-          sudo wget -O mihomo.gz -nv https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-freebsd-arm64-alpha-cb652dd.gz
-          sudo gunzip -c mihomo.gz > mihomo_arm64
-          sudo cp mihomo_arm64 ./option-root/bin/mihomo
-          sudo rm -f mihomo*
-          sudo chmod +x ./option-root/bin/mihomo
           
           if [ -f "./busybox/busybox_aarch64" ]; then
               sudo cp ./busybox/busybox_aarch64 ./option-root/bin/busybox
