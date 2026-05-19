@@ -121,8 +121,8 @@ class KeyGenApp(ctk.CTk):
             # 如果 Level 5 和 Level 4 对应的真实数值不是 10 和 6，请自行修改下方字典中的数字。
             ros_level_map = {
                 "Level 6": 22,   
-                "Level 5": 10,   # 请替换为真实数值
-                "Level 4": 6     # 请替换为真实数值
+                "Level 5": 21,   # 请替换为真实数值
+                "Level 4": 20     # 请替换为真实数值
             }
             
             chr_level_map = {
