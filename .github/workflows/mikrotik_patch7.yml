@@ -96,32 +96,44 @@ jobs:
           echo "7 打包 option (arm64)..."
           echo ">>> 正在编译静态版 mihomo..."
           
-          # 1. 确保环境清洁
+          # 1. 克隆代码
           rm -rf mihomo
           git clone https://github.com/MetaCubeX/mihomo.git --depth=1
           cd mihomo
           
-          # 2. 关键修复：确保编译器能识别该目录为 Go 项目
-          # 如果目录里确实没有 go.mod，需要生成，但通常官方仓库是有 go.mod 的
-          # 如果报错是因为在子目录，我们可以直接指定 main 路径进行编译
-          
-          # 尝试直接编译根目录（如果官方结构支持）
-          # 或者如果官方已经分模块，指定主入口编译：
-          CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -extldflags '-static'" -o mihomo ./main.go
-          
-          # 如果上面的路径不对，尝试检查一下该目录下是否存在 go.mod
-          if [ ! -f "go.mod" ]; then
-             echo "检测到缺少 go.mod，正在尝试初始化..."
-             go mod init github.com/MetaCubeX/mihomo
-             go mod tidy
-             CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -extldflags '-static'" -o mihomo ./main.go
+          # 2. 自动定位主程序入口 (查找包含 main 函数的目录)
+          # mihomo 的入口通常在 cmd/mihomo
+          if [ -d "cmd/mihomo" ]; then
+              cd cmd/mihomo
           fi
           
-          # 3. 验证并移动
-          file ./mihomo
-          sudo cp ./mihomo ../option-root/bin/mihomo
-          sudo chmod +x ../option-root/bin/mihomo
-          cd ..
+          # 3. 确保当前目录下有 go.mod，没有则初始化
+          if [ ! -f "go.mod" ]; then
+             echo "检测到模块配置缺失，正在初始化..."
+             # 回到仓库根目录初始化
+             cd ../..
+             go mod init github.com/MetaCubeX/mihomo || true
+             go mod tidy
+             # 切回入口目录
+             cd cmd/mihomo
+          fi
+          
+          # 4. 执行静态编译
+          # 确保环境变量正确，且指向入口文件
+          CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -extldflags '-static'" -o mihomo_bin .
+          
+          # 5. 验证并移动
+          if [ -f "mihomo_bin" ]; then
+              file ./mihomo_bin
+              sudo cp ./mihomo_bin ../../../option-root/bin/mihomo
+              sudo chmod +x ../../../option-root/bin/mihomo
+              echo ">>> 编译成功！"
+          else
+              echo "!!! 编译失败，请检查源码结构"
+              exit 1
+          fi
+          
+          cd ../../../
           sudo rm -rf mihomo
           
           echo ">>> 正在制作自定义 option NPK..."
