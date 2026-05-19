@@ -12,13 +12,13 @@ class KeyGenApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("License Key Gen")
+        self.title("RouterOS License KeyGen")
         self.geometry("420x650")
         self.configure(fg_color="#1E232D") # 深灰色背景，贴近图片
 
         # --- 标题 ---
         self.title_label = ctk.CTkLabel(
-            self, text="License Key Gen", 
+            self, text="RouterOS License KeyGen", 
             font=ctk.CTkFont(size=30, weight="bold"), 
             text_color="#4da8da" # 浅蓝色字体
         )
