@@ -32,7 +32,7 @@ jobs:
         SECRET_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
       run: |
         # 读取 gui.py，将其中的 YOUR_PRIVATE_KEY_HERE 替换为真正的私钥，并覆写保存
-        (Get-Content gui.py) -replace "CUSTOM_LICENSE_PRIVATE_KEY_HERE", $env:SECRET_KEY | Set-Content gui.py
+        (Get-Content license_gui.py) -replace "CUSTOM_LICENSE_PRIVATE_KEY_HERE", $env:SECRET_KEY | Set-Content license_gui.py
 
     - name: Build Executable with PyInstaller
       run: |
