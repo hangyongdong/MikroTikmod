@@ -1,5 +1,8 @@
 from mikro import *
 
+    MIKRO_LICENSE_HEADER = '-----BEGIN MIKROTIK SOFTWARE KEY------------'
+    MIKRO_LICENSE_FOOTER = '-----END MIKROTIK SOFTWARE KEY--------------'
+
 
 def generate_eddsa_keypair():
     curve = getcurvebyname('Ed25519')
@@ -110,8 +113,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    MIKRO_LICENSE_HEADER = '-----BEGIN MIKROTIK SOFTWARE KEY------------'
-    MIKRO_LICENSE_FOOTER = '-----END MIKROTIK SOFTWARE KEY--------------'
+
 
     if args.command == 'genkey':
         print('export MIKRO_NPK_SIGN_PUBLIC_KEY="C293CED638A2A33C681FC8DE98EE26C54EADC5390C2DFCE197D35C83C416CF59"')
