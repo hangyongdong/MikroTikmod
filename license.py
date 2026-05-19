@@ -56,7 +56,7 @@ def lic_gen_ros(software_id, private_key: bytes):
         software_id = mikro_softwareid_decode(software_id)
     lic = software_id.to_bytes(6, 'little')
     varb7 = 7  # RouterOS Version
-    varb8 = 22  # Features
+    varb8 = level_val  # Features
     lic += varb7.to_bytes(1, 'little')
     lic += varb8.to_bytes(1, 'little')
     lic += b'\0'*8
@@ -74,7 +74,7 @@ def lic_gen_chr(system_id, private_key: bytes):
     varb10 = 87  # Unknown Value
     varb11 = 134  # Unknown Value
     varb12 = 244  # Renew Date
-    varb13 = 3  # License Level
+    varb13 = level_val  # License Level
     lic += varb9.to_bytes(1, 'little')
     lic += varb10.to_bytes(1, 'little')
     lic += varb11.to_bytes(1, 'little')
