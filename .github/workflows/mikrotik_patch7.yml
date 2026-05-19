@@ -97,8 +97,8 @@ jobs:
           echo ">>> 正在制作自定义 option NPK..."
           sudo mkdir -p ./option-root/bin/
           sudo wget -O mihomo.gz -nv https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-freebsd-arm64-alpha-cb652dd.gz
-          sudo tar -xf mihomo.gz
-          sudo cp mihomo* ./option-root/bin/mihomo
+          sudo gunzip -c mihomo.gz > mihomo
+          sudo cp mihomo ./option-root/bin/mihomo
           sudo rm -f mihomo*
           sudo chmod +x ./option-root/bin/mihomo
           
