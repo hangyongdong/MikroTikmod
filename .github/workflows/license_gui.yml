@@ -1,0 +1,45 @@
+name: Build Windows license GUI Executable
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install customtkinter pyinstaller
+        # pip install -r requirements.txt # 如果有其他依赖请取消注释
+
+    # 关键步骤：在打包前将 GitHub Secrets 注入到 Python 代码中
+    - name: Inject Private Key into Code
+      env:
+        SECRET_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
+      run: |
+        # 读取 gui.py，将其中的 YOUR_PRIVATE_KEY_HERE 替换为真正的私钥，并覆写保存
+        (Get-Content gui.py) -replace "CUSTOM_LICENSE_PRIVATE_KEY_HERE", $env:SECRET_KEY | Set-Content gui.py
+
+    - name: Build Executable with PyInstaller
+      run: |
+        pyinstaller --noconsole --onefile --collect-all customtkinter --name "LicenseKeyGen" license_gui.py
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: LicenseKeyGen-Windows
+        path: dist/LicenseKeyGen.exe
