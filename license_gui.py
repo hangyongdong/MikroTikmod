@@ -18,7 +18,7 @@ class KeyGenApp(ctk.CTk):
 
         # --- 标题 ---
         self.title_label = ctk.CTkLabel(
-            self, text="RouterOS License KeyGen", 
+            self, text="License KeyGen", 
             font=ctk.CTkFont(size=30, weight="bold"), 
             text_color="#4da8da" # 浅蓝色字体
         )
@@ -48,7 +48,7 @@ class KeyGenApp(ctk.CTk):
         # --- ID 输入框 ---
         self.id_entry = ctk.CTkEntry(
             self, 
-            placeholder_text="e.g. XXXX-XXXX", 
+            placeholder_text="Enter Software ID / System ID...", 
             height=45,
             fg_color="#181B22", border_color="#374151"
         )
