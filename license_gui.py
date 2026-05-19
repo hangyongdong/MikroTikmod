@@ -48,7 +48,7 @@ class KeyGenApp(ctk.CTk):
         # --- ID 输入框 ---
         self.id_entry = ctk.CTkEntry(
             self, 
-            placeholder_text="Software/System ID (e.g. C8FV-5V1J)", 
+            placeholder_text="e.g. XXXX-XXXX", 
             height=45,
             fg_color="#181B22", border_color="#374151"
         )
