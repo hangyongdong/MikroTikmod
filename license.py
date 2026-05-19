@@ -50,13 +50,24 @@ def lic_parse_chr(lic: str, public_key: bytes):
     print(f'License valid: {mikro_kcdsa_verify(licVal, nonce_hash+signature, public_key)}')
 
 
-def lic_gen_ros(software_id, private_key: bytes, level_val: int = 22):
+def lic_gen_ros(software_id, private_key: bytes, level_val=None):
     assert (isinstance(private_key, bytes))
     if isinstance(software_id, str):
         software_id = mikro_softwareid_decode(software_id)
     lic = software_id.to_bytes(6, 'little')
     varb7 = 7  # RouterOS Version
-    varb8 = level_val  # Features
+    
+    # === PRO级逻辑：优先使用传入参数，如果没有传参则退化读取环境变量 ===
+    if level_val is not None:
+        varb8 = int(level_val)
+    else:
+        target_level = str(os.getenv("LICENSE_LEVEL", "6")).strip()
+        ros_level_map = {
+            "4": 20, "5": 21, "6": 22,
+            "Level 4": 20, "Level 5": 21, "Level 6": 22
+        }
+        varb8 = ros_level_map.get(target_level, 22)
+    
     lic += varb7.to_bytes(1, 'little')
     lic += varb8.to_bytes(1, 'little')
     lic += b'\0'*8
@@ -65,7 +76,7 @@ def lic_gen_ros(software_id, private_key: bytes, level_val: int = 22):
     return MIKRO_LICENSE_HEADER + '\n' + lic[:len(lic)//2] + '\n' + lic[len(lic)//2:] + '\n' + MIKRO_LICENSE_FOOTER
 
 
-def lic_gen_chr(system_id, private_key: bytes, level_val: int = 3):
+def lic_gen_chr(system_id, private_key: bytes, level_val=None):
     assert (isinstance(private_key, bytes))
     if isinstance(system_id, str):
         system_id = mikro_systemid_decode(system_id)
@@ -74,7 +85,18 @@ def lic_gen_chr(system_id, private_key: bytes, level_val: int = 3):
     varb10 = 87  # Unknown Value
     varb11 = 134  # Unknown Value
     varb12 = 244  # Renew Date
-    varb13 = level_val  # License Level
+    
+    # === PRO级逻辑：优先使用传入参数，如果没有传参则退化读取环境变量 ===
+    if level_val is not None:
+        varb13 = int(level_val)
+    else:
+        target_level = str(os.getenv("LICENSE_LEVEL", "3")).strip()
+        chr_level_map = {
+            "1": 1, "2": 2, "3": 3,
+            "P1": 1, "P10": 2, "P-Unlimited": 3
+        }
+        varb13 = chr_level_map.get(target_level, 3)
+        
     lic += varb9.to_bytes(1, 'little')
     lic += varb10.to_bytes(1, 'little')
     lic += varb11.to_bytes(1, 'little')
