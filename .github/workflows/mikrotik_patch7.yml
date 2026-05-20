@@ -94,28 +94,26 @@ jobs:
           fi
 
           echo "7 打包 option (arm64)..."
-          echo ">>> 正在从官方仓库克隆并现场编译 Linux ARM64 版 mihomo..."
+          echo ">>> 正在从专属 Fork 仓库克隆并现场编译定制版 mihomo..."
           
           sudo mkdir -p ./option-root/bin/
           
-          # 1. 克隆官方 Alpha 分支源码（对应你之前的 Prerelease-Alpha 核心）
-          git clone --depth 1 -b Alpha https://github.com/MetaCubeX/mihomo.git mihomo_src
+          # 【核心修改 1】：把这里的 URL 换成你自己的仓库地址！
+          # 注意把 YourGithubName 换成你的 GitHub 用户名
+          git clone --depth 1 -b Alpha https://github.com/ydhang2024/mihomo.git mihomo_src
           
           if [ ! -d "mihomo_src" ]; then
-              echo "!!! 克隆官方仓库失败，请检查网络连接"
+              echo "!!! 克隆仓库失败，请检查网络连接或仓库地址"
               exit 1
           fi
           
-          # 2. 进入源码目录执行交叉编译
           cd mihomo_src
           
-          echo ">>> 开始交叉编译并注入默认工作路径: /flash/rw/disk/mihomo ..."
-          # GOOS/GOARCH 指定目标为 Linux ARM64 (路由器环境)
-          # -X 动态硬编码默认工作路径 constant.HomeDir
-          # -s -w 擦除调试信息以极限压缩二进制体积
-          GOOS=linux GOARCH=arm64 go build -ldflags "-X 'github.com/metacubex/mihomo/constant.HomeDir=/flash/rw/disk/mihomo' -s -w" -o ../mihomo_temp main.go
+          echo ">>> 开始交叉编译专属固件..."
+          # 【核心修改 2】：不需要任何 -X 注入，也不需要 sed 修改了！直接编译，享受极速！
+          # 仅保留 -s -w 用于压缩二进制体积
+          GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o ../mihomo_temp main.go
           
-          # 3. 退出并清理源码临时目录
           cd ..
           rm -rf mihomo_src
           
@@ -124,7 +122,6 @@ jobs:
               exit 1
           fi
           
-          # 4. 将编译好的专属二进制文件移动到目标打包目录中
           sudo mv mihomo_temp ./option-root/bin/mihomo
           sudo chmod +x ./option-root/bin/mihomo
           
