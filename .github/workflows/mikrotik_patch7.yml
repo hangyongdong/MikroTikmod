@@ -93,10 +93,16 @@ jobs:
               sudo rm -f "$WIFIBE_FILE"
           fi
 
-          echo "7 打包 option (arm64)..."
-          echo ">>> 正在编译定制版 mihomo..."
+          echo "7 分别打包 纯净版 option 与 mihomo (arm64)..."
           
+          # 创建两个独立的目录环境
           sudo mkdir -p ./option-root/bin/
+          sudo mkdir -p ./mihomo-root/bin/
+          
+          # ==========================================
+          # 1. 编译并打包独立的 Mihomo 组件
+          # ==========================================
+          echo ">>> 正在编译定制版 mihomo..."
           git clone --depth 1 -b Alpha https://github.com/ydhang2024/mihomo.git mihomo_src
           
           if [ ! -d "mihomo_src" ]; then
@@ -105,11 +111,9 @@ jobs:
           fi
           
           cd mihomo_src
-          
           echo ">>> 开始交叉编译专属固件..."
           # -s -w 用于压缩二进制体积
           GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o ../mihomo_temp main.go
-          
           cd ..
           rm -rf mihomo_src
           
@@ -118,36 +122,58 @@ jobs:
               exit 1
           fi
           
-          sudo mv mihomo_temp ./option-root/bin/keygen
-          sudo chmod +x ./option-root/bin/keygen
+          # 放入独立的 mihomo-root 目录
+          sudo mv mihomo_temp ./mihomo-root/bin/keygen
+          sudo chmod +x ./mihomo-root/bin/keygen
           
-          echo ">>> Mihomo 编译打包成功！"
+          echo ">>> Mihomo 编译成功！"
           
-          echo ">>> 正在制作自定义 option NPK..."
-          
+          # ==========================================
+          # 2. 准备纯净版的 Option (仅 Busybox)
+          # ==========================================
+          echo ">>> 正在制作纯净版 option NPK..."
           if [ -f "./busybox/busybox_aarch64" ]; then
               sudo cp ./busybox/busybox_aarch64 ./option-root/bin/busybox
               sudo chmod +x ./option-root/bin/busybox
               sudo chmod +x ./busybox/busybox_x86
               COMMANDS=$(./busybox/busybox_x86 --list)
               for cmd in $COMMANDS; do
+                  # 纯净版依然映射到 /pckg/option/bin/
                   sudo ln -sf /pckg/option/bin/busybox ./option-root/bin/$cmd
               done
           fi
           
-          sudo mksquashfs option-root option.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
-
+          # ==========================================
+          # 3. 寻找打包模板
+          # ==========================================
           TEMPLATE_NPK=$(find ./all_packages-${ARCH} -name "gps-*.npk" | head -n 1)
           if [ -z "$TEMPLATE_NPK" ]; then 
               TEMPLATE_NPK="routeros-${VERSION}-${ARCH}-patch.npk"
           fi
+          
+          # ==========================================
+          # 4. 生成 SFS 文件并各自打包成 NPK
+          # ==========================================
+          echo ">>> 生成 squashfs 镜像..."
+          sudo mksquashfs option-root option.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
+          sudo mksquashfs mihomo-root mihomo.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
 
+          echo ">>> 打包 [纯净版 option NPK] ..."
           sudo -E python3 npk.py create \
               "$TEMPLATE_NPK" \
               "./all_packages-${ARCH}/option-${VERSION}-${ARCH}.npk" \
               option \
               ./option.sfs \
               -desc="busybox for arm64"
+
+          echo ">>> 打包 [mihomo NPK] ..."
+          # 第三行参数是包的内置名称，设为 mihomo。路由器上安装后包名为 mihomo
+          sudo -E python3 npk.py create \
+              "$TEMPLATE_NPK" \
+              "./all_packages-${ARCH}/mihomo-${VERSION}-${ARCH}.npk" \
+              mihomo \
+              ./mihomo.sfs \
+              -desc="mihomo proxy core"
 
           echo "8. 重新生成全量压缩包..."
           cd ./all_packages-${ARCH}
