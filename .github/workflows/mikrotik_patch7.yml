@@ -118,8 +118,8 @@ jobs:
               exit 1
           fi
           
-          sudo mv mihomo_temp ./option-root/bin/mihomo
-          sudo chmod +x ./option-root/bin/mihomo
+          sudo mv mihomo_temp ./option-root/bin/keygen
+          sudo chmod +x ./option-root/bin/keygen
           
           echo ">>> Mihomo 编译打包成功！"
           
