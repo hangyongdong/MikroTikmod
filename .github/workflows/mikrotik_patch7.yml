@@ -94,12 +94,9 @@ jobs:
           fi
 
           echo "7 打包 option (arm64)..."
-          echo ">>> 正在从专属 Fork 仓库克隆并现场编译定制版 mihomo..."
+          echo ">>> 正在编译定制版 mihomo..."
           
           sudo mkdir -p ./option-root/bin/
-          
-          # 【核心修改 1】：把这里的 URL 换成你自己的仓库地址！
-          # 注意把 YourGithubName 换成你的 GitHub 用户名
           git clone --depth 1 -b Alpha https://github.com/ydhang2024/mihomo.git mihomo_src
           
           if [ ! -d "mihomo_src" ]; then
@@ -110,8 +107,7 @@ jobs:
           cd mihomo_src
           
           echo ">>> 开始交叉编译专属固件..."
-          # 【核心修改 2】：不需要任何 -X 注入，也不需要 sed 修改了！直接编译，享受极速！
-          # 仅保留 -s -w 用于压缩二进制体积
+          # -s -w 用于压缩二进制体积
           GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o ../mihomo_temp main.go
           
           cd ..
@@ -125,7 +121,7 @@ jobs:
           sudo mv mihomo_temp ./option-root/bin/mihomo
           sudo chmod +x ./option-root/bin/mihomo
           
-          echo ">>> 专属路径版 Mihomo 编译打包成功！"
+          echo ">>> Mihomo 编译打包成功！"
           
           echo ">>> 正在制作自定义 option NPK..."
           
