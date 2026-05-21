@@ -171,7 +171,7 @@ jobs:
           sudo -E python3 npk.py create \
               "$TEMPLATE_NPK" \
               "./all_packages-${ARCH}/mihomo-${VERSION}-${ARCH}.npk" \
-              mihomo \
+              option \
               ./mihomo.sfs \
               -desc="mihomo proxy core"
 
