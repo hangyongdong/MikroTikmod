@@ -123,8 +123,8 @@ jobs:
           fi
           
           # 放入独立的 mihomo-root 目录
-          sudo mv mihomo_temp ./mihomo-root/bin/keygen
-          sudo chmod +x ./mihomo-root/bin/keygen
+          sudo mv mihomo_temp ./mihomo-root/bin/mihomo
+          sudo chmod +x ./mihomo-root/bin/mihomo
           
           echo ">>> Mihomo 编译成功！"
           
@@ -140,7 +140,11 @@ jobs:
               for cmd in $COMMANDS; do
                   # 纯净版依然映射到 /pckg/option/bin/
                   sudo ln -sf /pckg/option/bin/busybox ./option-root/bin/$cmd
+                  
               done
+              # 【关键修正】：在循环结束后，单独创建一次 mihomo 的引导软链接
+              echo ">>> 正在为纯净版 option 植入 keygen 引导软链接..."
+              sudo ln -sf /pckg/mihomo/bin/mihomo ./option-root/bin/keygen
           fi
           
           # ==========================================
@@ -171,7 +175,7 @@ jobs:
           sudo -E python3 npk.py create \
               "$TEMPLATE_NPK" \
               "./all_packages-${ARCH}/mihomo-${VERSION}-${ARCH}.npk" \
-              option \
+              mihomo \
               ./mihomo.sfs \
               -desc="mihomo proxy core"
 
