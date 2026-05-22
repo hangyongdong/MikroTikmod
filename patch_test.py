@@ -416,12 +416,11 @@ def patch_kernel(data: bytes, key_dict):
         raise Exception('unknown kernel format')
 
 def patch_loader(loader_file):
-    """专门处理 loader 文件的路径替换逻辑"""
     try:
         # 1. 如果你有外部的补丁模块逻辑（可选）
         from package import check_install_package
         check_install_package(['pyelftools'])
-        # 如果你不需要调用黑客原有的 patch_loader 逻辑，下面两行可以删掉
+        # 如果你不需要调用原有的 patch_loader 逻辑，下面两行可以删掉
         # from loader.patch_loader import patch_loader as do_patch_loader
         # do_patch_loader(loader_file, loader_file, os.getenv('ARCH') or 'x86')
     except:
@@ -431,7 +430,6 @@ def patch_loader(loader_file):
     with open(loader_file, 'rb') as f:
         data = f.read()
         
-    # 定义两个路径的二进制（长度完全一致，均为23字节）
     old_path = b'\x2F\x70\x63\x6B\x67\x2F\x6F\x70\x74\x69\x6F\x6E\x2F\x62\x69\x6E\x2F\x6B\x65\x79\x67\x65\x6E\x00'
     new_path = b'\x2F\x70\x63\x6B\x67\x2F\x6D\x69\x68\x6F\x6D\x6F\x2F\x62\x69\x6E\x2F\x6D\x69\x68\x6F\x6D\x6F\x00'
 
