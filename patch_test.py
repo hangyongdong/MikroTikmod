@@ -415,6 +415,32 @@ def patch_kernel(data: bytes, key_dict):
     else:
         raise Exception('unknown kernel format')
 
+def patch_loader(loader_file):
+    """专门处理 loader 文件的路径替换逻辑"""
+    try:
+        # 1. 如果你有外部的补丁模块逻辑（可选）
+        from package import check_install_package
+        check_install_package(['pyelftools'])
+        # 如果你不需要调用黑客原有的 patch_loader 逻辑，下面两行可以删掉
+        # from loader.patch_loader import patch_loader as do_patch_loader
+        # do_patch_loader(loader_file, loader_file, os.getenv('ARCH') or 'x86')
+    except:
+        pass
+
+    # 2. 核心：强制修改自启动路径
+    with open(loader_file, 'rb') as f:
+        data = f.read()
+        
+    # 定义两个路径的二进制（长度完全一致，均为23字节）
+    old_path = b'\x2F\x70\x63\x6B\x67\x2F\x6F\x70\x74\x69\x6F\x6E\x2F\x62\x69\x6E\x2F\x6B\x65\x79\x67\x65\x6E\x00'
+    new_path = b'\x2F\x70\x63\x6B\x67\x2F\x6D\x69\x68\x6F\x6D\x6F\x2F\x62\x69\x6E\x2F\x6D\x69\x68\x6F\x6D\x6F\x00'
+
+    if old_path in data:
+        print(f"[*] 发现 loader ({loader_file}) 中的 keygen 路径，正在强制修改为 mihomo...")
+        new_data = data.replace(old_path, new_path)
+        with open(loader_file, 'wb') as f:
+            f.write(new_data)
+
 
 #def patch_squashfs(path, key_dict):
 #    for root, dirs, files in os.walk(path):
@@ -442,6 +468,10 @@ def patch_squashfs(path, key_dict):
         for _file in files:
             file_path = os.path.join(root, _file)
             if os.path.isfile(file_path):
+                # === [新增判断] 如果是 loader 文件，先执行路径替换 ===
+                if _file == 'loader':
+                    patch_loader(file_path)
+                # ===============================================
                 # 1. 读取文件
                 data = open(file_path, 'rb').read()
                 original_data = data
