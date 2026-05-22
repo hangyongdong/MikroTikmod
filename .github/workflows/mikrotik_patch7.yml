@@ -127,8 +127,8 @@ jobs:
                   sudo ln -sf /pckg/option/bin/busybox ./option-root/bin/$cmd                  
               done
               
-              echo ">>> 正在为option 植入 keygen 引导软链接..."
-              sudo ln -sf /pckg/mihomo/bin/mihomo ./option-root/bin/keygen
+              #echo ">>> 正在为option 植入 keygen 引导软链接..."
+              #sudo ln -sf /pckg/mihomo/bin/mihomo ./option-root/bin/keygen
           fi
           
           TEMPLATE_NPK=$(find ./all_packages-${ARCH} -name "gps-*.npk" | head -n 1)
