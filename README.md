@@ -8,7 +8,7 @@
    all_packages中R结尾的wifi-qcom包适用于红米ax5和ax6
    
 ### 关于option(busybox)
-   7.22.3开始option集成mihomo内核
+   7.21.4开始增加mihomo NPK包
 
 ### 激活：
    激活请加QQ群：173015615，群公告有激活网址
