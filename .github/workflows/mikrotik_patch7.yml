@@ -159,7 +159,7 @@ jobs:
           cd ..
           
           echo "9. 获取 CHANGELOG..."
-          curl -sL "https://download.mikrotik.com/routeros/${VERSION}/CHANGELOG" > changelog.txt
+          curl -sL "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/${VERSION}/CHANGELOG" > changelog.txt
           
           sudo rm -rf ./all_packages-${ARCH}
           sudo rm all_packages-${ARCH}-${VERSION}.zip
@@ -176,7 +176,7 @@ jobs:
 
         run: |
           echo "8. 下载官方 Netinstall 工具..."
-          sudo wget -nv -O netinstall.zip "https://download.mikrotik.com/routeros/${VERSION}/netinstall-${VERSION}.zip"
+          sudo wget -nv -O netinstall.zip "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/${VERSION}/netinstall-${VERSION}.zip"
 
           echo "9. 下载并patch Windows 版本 (netinstall.exe)..."
           sudo unzip -q netinstall.zip
