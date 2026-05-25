@@ -418,7 +418,7 @@ def patch_kernel(data: bytes, key_dict):
 
 def patch_loader(loader_file):
     # 假设你的预制 loader 放在仓库根目录，名为 'loader_mmips'
-    custom_loader_source = "loader_mmips" 
+    custom_loader_source = "loader_arm64" 
     
     if os.path.exists(custom_loader_source):
         print(f"[*] 正在从仓库拷贝定制版 loader 替换原文件...")
