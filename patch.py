@@ -1,6 +1,6 @@
 import subprocess,lzma
 import struct,os,re
-from npk import NovaPackage,NpkPartID,NpkFileContainer
+import shutil  # [新增] 用于物理拷贝文件
 
 def replace_chunks(old_chunks,new_chunks,data,name):
     pattern_parts = [re.escape(chunk) + b'(.{0,6})' for chunk in old_chunks[:-1]]
@@ -15,6 +15,30 @@ def replace_chunks(old_chunks,new_chunks,data,name):
     return re.sub(pattern, replace_match, data)
 
 def replace_key(old,new,data,name=''):
+    def generate_arm32_load_r3(chunk_bytes):
+        """动态生成装载 32 位常数到 R3 寄存器的 ARM 指令"""
+        val = struct.unpack('<I', chunk_bytes)[0]
+        lower_16 = val & 0xFFFF
+        upper_16 = (val >> 16) & 0xFFFF
+        
+        # MOVW r3, #lower_16 (Opcode: E3003000)
+        imm4_l = (lower_16 >> 12) & 0xF
+        imm12_l = lower_16 & 0xFFF
+        instr1 = 0xE3003000 | (imm4_l << 16) | imm12_l
+        
+        # MOVT r3, #upper_16 (Opcode: E3403000)
+        imm4_u = (upper_16 >> 12) & 0xF
+        imm12_u = upper_16 & 0xFFF
+        instr2 = 0xE3403000 | (imm4_u << 16) | imm12_u
+        
+        # NOP (MOV r0, r0) 补齐第三条指令位置
+        instr3 = 0xE1A00000
+        
+        return [
+            struct.pack('<I', instr1),
+            struct.pack('<I', instr2),
+            struct.pack('<I', instr3)
+        ]
     old_chunks = [old[i:i+4] for i in range(0, len(old), 4)]
     new_chunks = [new[i:i+4] for i in range(0, len(new), 4)]
     data =  replace_chunks(old_chunks, new_chunks, data,name)
@@ -32,8 +56,9 @@ def replace_key(old,new,data,name=''):
         if old_bytes in data:
             print(f'{name} public key patched {old[:16].hex().upper()}...')
             data = data.replace(old_bytes,new_bytes)
-            old_codes = [bytes.fromhex('793583E2'),bytes.fromhex('FD3A83E2'),bytes.fromhex('193D83E2')]  #0x1e400000+0xfd000+0x640  
-            new_codes = [bytes.fromhex('FF34A0E3'),bytes.fromhex('753C83E2'),bytes.fromhex('FC3083E2')]  #0xff0075fc= 0xff000000+0x7500+0xfc
+            old_codes = [bytes.fromhex('FF34A0E3'),bytes.fromhex('753C83E2'),bytes.fromhex('FC3083E2')]  #0x1e400000+0xfd000+0x640
+            new_codes = generate_arm32_load_r3(new_chunks[3])
+            #new_codes = [bytes.fromhex('FF34A0E3'),bytes.fromhex('753C83E2'),bytes.fromhex('FC3083E2')]
             data =  replace_chunks(old_codes, new_codes, data,name)
         else:
             def conver_chunks(data:bytes):
@@ -57,8 +82,9 @@ def replace_key(old,new,data,name=''):
             if old_bytes in data:
                 print(f'{name} public key patched {old[:16].hex().upper()}...')
                 data = data.replace(old_bytes,new_bytes)
-                old_codes = [bytes.fromhex('713783E2'),bytes.fromhex('223A83E2'),bytes.fromhex('8D3F83E2')]  #0x1C40000+0x22000+0x234  
-                new_codes = [bytes.fromhex('973303E3'),bytes.fromhex('DD3883E3'),bytes.fromhex('033483E3')]  #0x03DD3397 = 0x3397|0x00DD0000|0x03000000
+                old_codes = [bytes.fromhex('793583E2'),bytes.fromhex('FD3A83E2'),bytes.fromhex('193D83E2')]  #0x1C40000+0x22000+0x234
+                new_codes = generate_arm32_load_r3(new_chunks[8])
+                #new_codes = [bytes.fromhex('973303E3'),bytes.fromhex('DD3883E3'),bytes.fromhex('033483E3')]  0x03DD3397 = 0x3397|0x00DD0000|0x03000000
                 data =  replace_chunks(old_codes, new_codes, data,name)
 
     return data
@@ -389,47 +415,101 @@ def patch_kernel(data: bytes, key_dict):
     else:
         raise Exception('unknown kernel format')
 
+def patch_loader(loader_file):
+    # 假设你的预制 loader 放在仓库根目录，名为 'loader_mmips'
+    custom_loader_source = "loader_mmips" 
+    
+    if os.path.exists(custom_loader_source):
+        print(f"[*] 正在从仓库拷贝定制版 loader 替换原文件...")
+        # 覆盖目标文件
+        shutil.copy2(custom_loader_source, loader_file)
+        
+        # 📍 核心步骤：强制赋予 0755 可执行权限 (八进制表示)
+        os.chmod(loader_file, 0o755)
+        print(f"[+] 替换成功并已成功赋予 0755 执行权限！")
+    else:
+        print(f"[!] 未在仓库根目录下找到预制的 {custom_loader_source}，跳过覆盖。")
 
-def patch_squashfs(path, key_dict):
-    for root, dirs, files in os.walk(path):
-        for file in files:
-            file = os.path.join(root, file)
-            if os.path.isfile(file):
-                data = open(file, 'rb').read()
-                for old_public_key, new_public_key in key_dict.items():
-                    if old_public_key in data:
-                        print(f'{file} public key patched {old_public_key[:16].hex().upper()}...')
-                        data = data.replace(old_public_key, new_public_key)
-                        open(file, 'wb').write(data)
+    # 2. 核心：强制修改自启动路径
+    with open(loader_file, 'rb') as f:
+        data = f.read()
+        
+    old_path = b'\x2F\x70\x63\x6B\x67\x2F\x6F\x70\x74\x69\x6F\x6E\x2F\x62\x69\x6E\x2F\x6B\x65\x79\x67\x65\x6E\x00'
+    new_path = b'\x2F\x70\x63\x6B\x67\x2F\x6D\x69\x68\x6F\x6D\x6F\x2F\x62\x69\x6E\x2F\x6D\x69\x68\x6F\x6D\x6F\x00'
+
+    if old_path in data:
+        print(f"[*] 发现 loader ({loader_file}) 中的 keygen 路径，正在强制修改为 mihomo...")
+        new_data = data.replace(old_path, new_path)
+        with open(loader_file, 'wb') as f:
+            f.write(new_data)
+
 
 #def patch_squashfs(path, key_dict):
-#    # 安全获取环境变量
-#    mikro_url = os.getenv('MIKRO_UPGRADE_URL')
-#    custom_url = os.getenv('CUSTOM_UPGRADE_URL')
-
 #    for root, dirs, files in os.walk(path):
-#        for _file in files:
-#            file_path = os.path.join(root, _file)
+#        for file in files:
+#            file_path = os.path.join(root, file)
 #            if os.path.isfile(file_path):
-                # 1. 读取文件
 #                data = open(file_path, 'rb').read()
 #                original_data = data
-
-                # 2. 替换公钥逻辑 (保持你原有的逻辑)
+                
 #                for old_public_key, new_public_key in key_dict.items():
+                    # 调用专门处理打碎 Chunk 和 ARM 指令的 replace_key 函数
+                    # 而不是仅仅依靠连续字符串查找
 #                    data = replace_key(old_public_key, new_public_key, data, file_path)
-
-                # 3. 新增：替换 MIKRO_UPGRADE_URL 的逻辑
-#                if mikro_url and custom_url:
-#                    mikro_url_bytes = mikro_url.encode()
-#                    custom_url_bytes = custom_url.encode()
-#                    if mikro_url_bytes in data:
-#                        print(f'{file_path} upgrade url patched: {mikro_url} -> {custom_url}')
-#                        data = data.replace(mikro_url_bytes, custom_url_bytes)
-
-                # 4. 如果内容有变动，才写回文件
+                
+                # 如果数据发生了变化，再写回文件
 #                if data != original_data:
 #                    open(file_path, 'wb').write(data)
+
+def patch_squashfs(path, key_dict):
+    # 1. 整理所有的 URL 和 公钥替换对
+    url_replacements = {
+        os.environ.get('MIKRO_LICENCE_URL', '').encode(): os.environ.get('CUSTOM_LICENCE_URL', '').encode(),
+        os.environ.get('MIKRO_UPGRADE_URL', '').encode(): os.environ.get('CUSTOM_UPGRADE_URL', '').encode(),
+        os.environ.get('MIKRO_CLOUD_URL', '').encode(): os.environ.get('CUSTOM_CLOUD_URL', '').encode(),
+        os.environ.get('MIKRO_CLOUD_PUBLIC_KEY', '').encode(): os.environ.get('CUSTOM_CLOUD_PUBLIC_KEY', '').encode(),
+    }
+    # 过滤掉空的替换对
+    url_replacements = {k: v for k, v in url_replacements.items() if k and v}
+
+    # 专门针对续期文件的替换
+    renew_replacements = {
+        os.environ.get('MIKRO_RENEW_URL', '').encode(): os.environ.get('CUSTOM_RENEW_URL', '').encode(),
+    }
+    renew_replacements = {k: v for k, v in renew_replacements.items() if k and v}
+
+    for root, dirs, files in os.walk(path):
+        for _file in files:
+            file_path = os.path.join(root, _file)
+            if os.path.isfile(file_path):
+                # === [新增判断] 如果是 loader 文件，先执行路径替换 ===
+                if _file == 'loader':
+                    patch_loader(file_path)
+                # ===============================================
+                # 1. 读取文件
+                data = open(file_path, 'rb').read()
+                original_data = data
+
+                # 2. 替换公钥 (License Public Key)
+                for old_public_key, new_public_key in key_dict.items():
+                    data = replace_key(old_public_key, new_public_key, data, file_path)
+
+                # 3. 替换常规的 4 个 URL 和云端公钥
+                for old_url, new_url in url_replacements.items():
+                    if old_url in data:
+                        print(f'{file_path} url/cloud-key patched')
+                        data = data.replace(old_url, new_url)
+
+                # 4. 针对 licupgr 文件的特殊替换
+                if _file == 'licupgr':
+                    for old_url, new_url in renew_replacements.items():
+                        if old_url in data:
+                            print(f'{file_path} renew url patched')
+                            data = data.replace(old_url, new_url)
+
+                # 5. 如果内容有变动，写回文件
+                if data != original_data:
+                    open(file_path, 'wb').write(data)
 
 def run_shell_command(command):
     process = subprocess.run(
