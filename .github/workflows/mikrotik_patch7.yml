@@ -52,7 +52,7 @@ jobs:
           ARCH: 'arm64'
         run: |
           echo "1. 下载 RouterOS NPK..."
-          curl -L -# -O "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/${VERSION}-${ARCH}/routeros-${VERSION}-${ARCH}.npk"
+          curl -L -# -O "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"
 
           echo "2. 执行 Patch (routeros)..."
           # 确保 patch.py 在仓库根目录且文件名完全一致
@@ -63,7 +63,7 @@ jobs:
 
         run: |
           echo "3. 下载All Packages..."
-          curl -L -# -O "https://download.mikrotik.com/routeros/$VERSION/all_packages-arm64-$VERSION.zip"
+          curl -L -# -O "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/$VERSION/all_packages-arm64-$VERSION.zip"
 
           echo "4. 创建目录并解压"
           sudo mkdir -p ./all_packages-${ARCH}
