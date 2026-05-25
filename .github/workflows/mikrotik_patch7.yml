@@ -55,20 +55,12 @@ jobs:
           curl -L -# -O "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/${VERSION}-${ARCH}/routeros-${VERSION}-${ARCH}.npk"
 
           echo "2. 执行 Patch (routeros)..."
-          # 确保 patch_test.py 在仓库根目录且文件名完全一致
-          sudo -E python3 patch_test.py npk routeros-${VERSION}-${ARCH}.npk
+          # 确保 patch.py 在仓库根目录且文件名完全一致
+          sudo -E python3 patch.py npk routeros-${VERSION}-${ARCH}.npk
           sudo mv routeros-${VERSION}-${ARCH}.npk routeros-${VERSION}-${ARCH}-patch.npk
 
       - name: 使用新公钥签名NPK 和打包option
-        env:
-          MIKRO_NPK_SIGN_PUBLIC_KEY: ${{ secrets.NEW_MIKRO_NPK_SIGN_PUBLIC_KEY }}
-          MIKRO_LICENSE_PUBLIC_KEY: ${{ secrets.MIKRO_LICENSE_PUBLIC_KEY }}
-          CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
-          CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
-          CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
-          CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
-          VERSION: ${{ inputs.version }}
-          ARCH: 'arm64'
+
         run: |
           echo "3. 下载All Packages..."
           curl -L -# -O "https://download.mikrotik.com/routeros/$VERSION/all_packages-arm64-$VERSION.zip"
@@ -181,14 +173,7 @@ jobs:
 
 
       - name: 下载并 Patch Netinstall 工具
-        env:
-          MIKRO_NPK_SIGN_PUBLIC_KEY: ${{ secrets.NEW_MIKRO_NPK_SIGN_PUBLIC_KEY }}
-          MIKRO_LICENSE_PUBLIC_KEY: ${{ secrets.NEW_MIKRO_LICENSE_PUBLIC_KEY }}
-          CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
-          CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
-          CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
-          CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
-          VERSION: ${{ inputs.version }}
+
         run: |
           echo "8. 下载官方 Netinstall 工具..."
           sudo wget -nv -O netinstall.zip "https://download.mikrotik.com/routeros/${VERSION}/netinstall-${VERSION}.zip"
@@ -200,7 +185,7 @@ jobs:
               exit 1
           fi
           # 执行补丁
-          sudo -E python3 patch_test.py netinstall netinstall.exe
+          sudo -E python3 patch.py netinstall netinstall.exe
           sudo zip -q netinstall-${VERSION}.zip ./netinstall.exe
 
           echo "10. 清理临时解压文件"
