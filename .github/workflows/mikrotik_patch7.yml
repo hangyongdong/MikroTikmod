@@ -172,7 +172,6 @@ jobs:
         run: |
           echo "8. 下载官方 Netinstall 工具..."
           sudo wget -nv -O netinstall.zip "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/${VERSION}/netinstall-${VERSION}.zip"
-          sudo wget -nv -O netinstall_linux.tar.gz "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/${VERSION}/netinstall-${VERSION}.tar.gz"
 
           echo "9. Patch Windows 版本 (netinstall.exe)..."
           sudo unzip -q netinstall.zip
@@ -184,15 +183,6 @@ jobs:
           sudo zip -q netinstall-${VERSION}.zip ./netinstall.exe
           sudo rm -f ./netinstall.exe ./netinstall.zip 
 
-          echo "10. Patch Linux 版本 (netinstall)..."
-          sudo tar -xzf netinstall_linux.tar.gz
-          if [ ! -f "./netinstall" ]; then
-              echo "错误: 未找到 Linux 版 netinstall，解压可能失败！"
-              exit 1
-          fi
-          sudo -E python3 patch.py netinstall netinstall
-          sudo tar -czf netinstall-${VERSION}.tar.gz ./netinstall
-          sudo rm -f ./netinstall ./netinstall_linux.tar.gz
 
       - name: 自动发布到 GitHub Release
         uses: softprops/action-gh-release@v2
@@ -204,6 +194,5 @@ jobs:
             routeros-${{ env.VERSION }}-${{ env.ARCH }}-patch.npk
             all_packages-${{ env.ARCH }}-${{ env.VERSION }}-patched.zip
             netinstall-${{ env.VERSION }}.zip
-            netinstall-${{ env.VERSION }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
