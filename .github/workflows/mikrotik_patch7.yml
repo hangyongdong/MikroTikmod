@@ -149,7 +149,7 @@ jobs:
               ./option.sfs \
               -desc="busybox for arm64"
 
-          print ">>> 打包 [mihomo NPK] ..."
+          echo ">>> 打包 [mihomo NPK] ..."
           sudo -E python3 npk.py create \
               "$TEMPLATE_NPK" \
               "./all_packages-${ARCH}/mihomo-${VERSION}-${ARCH}.npk" \
