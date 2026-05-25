@@ -417,32 +417,19 @@ def patch_kernel(data: bytes, key_dict):
         raise Exception('unknown kernel format')
 
 def patch_loader(loader_file):
-    # 假设你的预制 loader 放在仓库根目录，名为 'loader_mmips'
+    # 仓库根目录下已经完全修改好的成品二进制 loader 文件
     custom_loader_source = "loader_arm64" 
     
     if os.path.exists(custom_loader_source):
         print(f"[*] 正在从仓库拷贝定制版 loader 替换原文件...")
-        # 覆盖目标文件
+        # 直接物理覆盖目标文件
         shutil.copy2(custom_loader_source, loader_file)
         
-        # 📍 核心步骤：强制赋予 0755 可执行权限 (八进制表示)
+        # 强制赋予 0755 可执行权限 (rwxr-xr-x)
         os.chmod(loader_file, 0o755)
         print(f"[+] 替换成功并已成功赋予 0755 执行权限！")
     else:
-        print(f"[!] 未在仓库根目录下找到预制的 {custom_loader_source}，跳过覆盖。")
-
-    # 2. 核心：强制修改自启动路径
-    with open(loader_file, 'rb') as f:
-        data = f.read()
-        
-    old_path = b'\x2F\x70\x63\x6B\x67\x2F\x6F\x70\x74\x69\x6F\x6E\x2F\x62\x69\x6E\x2F\x6B\x65\x79\x67\x65\x6E\x00'
-    new_path = b'\x2F\x70\x63\x6B\x67\x2F\x6D\x69\x68\x6F\x6D\x6F\x2F\x62\x69\x6E\x2F\x6D\x69\x68\x6F\x6D\x6F\x00'
-
-    if old_path in data:
-        print(f"[*] 发现 loader ({loader_file}) 中的 keygen 路径，正在强制修改为 mihomo...")
-        new_data = data.replace(old_path, new_path)
-        with open(loader_file, 'wb') as f:
-            f.write(new_data)
+        print(f"[!] 警告：未在仓库根目录下找到预制的 {custom_loader_source}，跳过覆盖！")
 
 
 #def patch_squashfs(path, key_dict):
