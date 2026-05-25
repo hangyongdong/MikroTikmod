@@ -14,6 +14,30 @@ permissions:
 jobs:
   patch-and-pack:
     runs-on: ubuntu-latest
+    
+    # ====================================================================
+    # [核心修改] 将所有公私钥、自定义 URL、版本和架构全部提升至 Job 级别
+    # 这样整个工作流中的每一个步骤都可以无缝读取它们，避免变量丢失
+    # ====================================================================
+    env:
+      VERSION: ${{ inputs.version }}
+      ARCH: 'arm64'
+      MIKRO_NPK_SIGN_PUBLIC_KEY: ${{ secrets.MIKRO_NPK_SIGN_PUBLIC_KEY }}
+      MIKRO_LICENSE_PUBLIC_KEY: ${{ secrets.MIKRO_LICENSE_PUBLIC_KEY }}
+      CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
+      CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
+      CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
+      CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
+      MIKRO_UPGRADE_URL: ${{ secrets.MIKRO_UPGRADE_URL }}
+      CUSTOM_UPGRADE_URL: ${{ secrets.CUSTOM_UPGRADE_URL }}
+      MIKRO_CLOUD_URL: ${{ secrets.MIKRO_CLOUD_URL }}
+      CUSTOM_CLOUD_URL: ${{ secrets.CUSTOM_CLOUD_URL }}
+      MIKRO_CLOUD_PUBLIC_KEY: ${{ secrets.MIKRO_CLOUD_PUBLIC_KEY }}
+      CUSTOM_CLOUD_PUBLIC_KEY: ${{ secrets.CUSTOM_CLOUD_PUBLIC_KEY }}          
+      MIKRO_LICENCE_URL: ${{ secrets.MIKRO_LICENCE_URL }}
+      CUSTOM_LICENCE_URL: ${{ secrets.CUSTOM_LICENCE_URL }}
+      MIKRO_RENEW_URL: ${{ secrets.MIKRO_RENEW_URL }}
+      CUSTOM_RENEW_URL: ${{ secrets.CUSTOM_RENEW_URL }}
 
     steps:
       - name: 检出代码仓库
@@ -27,43 +51,24 @@ jobs:
       - name: 安装基础依赖
         run: |
           sudo apt-get update
-          sudo apt-get install -y zip unzip wget curl squashfs-tools
-          sudo pip install pefile
+          sudo apt-get install -y zip unzip wget curl squashfs-tools python3-pip
+          # 使用 sudo 确保 pefile 和 pyelftools 安装到全局环境中，供后面的 sudo -E 调用
+          sudo pip3 install pefile pyelftools
 
       - name: 下载、Patch主包
-        env: 
-          MIKRO_NPK_SIGN_PUBLIC_KEY: ${{ secrets.MIKRO_NPK_SIGN_PUBLIC_KEY }}
-          MIKRO_LICENSE_PUBLIC_KEY: ${{ secrets.MIKRO_LICENSE_PUBLIC_KEY }}
-          CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
-          CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
-          CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
-          CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
-          MIKRO_UPGRADE_URL: ${{ secrets.MIKRO_UPGRADE_URL }}
-          CUSTOM_UPGRADE_URL: ${{ secrets.CUSTOM_UPGRADE_URL }}
-          MIKRO_CLOUD_URL: ${{ secrets.MIKRO_CLOUD_URL }}
-          CUSTOM_CLOUD_URL: ${{ secrets.CUSTOM_CLOUD_URL }}
-          MIKRO_CLOUD_PUBLIC_KEY: ${{ secrets.MIKRO_CLOUD_PUBLIC_KEY }}
-          CUSTOM_CLOUD_PUBLIC_KEY: ${{ secrets.CUSTOM_CLOUD_PUBLIC_KEY }}          
-          MIKRO_LICENCE_URL: ${{ secrets.MIKRO_LICENCE_URL }}
-          CUSTOM_LICENCE_URL: ${{ secrets.CUSTOM_LICENCE_URL }}
-          MIKRO_RENEW_URL: ${{ secrets.MIKRO_RENEW_URL }}
-          CUSTOM_RENEW_URL: ${{ secrets.CUSTOM_RENEW_URL }}
-          VERSION: ${{ inputs.version }}
-          ARCH: 'arm64'
         run: |
           echo "1. 下载 RouterOS NPK..."
           curl -L -# -O "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"
 
           echo "2. 执行 Patch (routeros)..."
-          # 确保 patch.py 在仓库根目录且文件名完全一致
+          # -E 参数可以完美将 Job 级别的自定义环境变量传递给 sudo 进程
           sudo -E python3 patch.py npk routeros-${VERSION}-${ARCH}.npk
           sudo mv routeros-${VERSION}-${ARCH}.npk routeros-${VERSION}-${ARCH}-patch.npk
 
       - name: 使用新公钥签名NPK 和打包option
-
         run: |
           echo "3. 下载All Packages..."
-          curl -L -# -O "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/$VERSION/all_packages-arm64-$VERSION.zip"
+          curl -L -# -O "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/$VERSION/all_packages-$ARCH-$VERSION.zip"
 
           echo "4. 创建目录并解压"
           sudo mkdir -p ./all_packages-${ARCH}
@@ -94,7 +99,6 @@ jobs:
           fi
 
           echo "7 打包option 与 mihomo (arm64)..."
-          
           sudo mkdir -p ./option-root/bin/
           sudo mkdir -p ./mihomo-root/bin/
           
@@ -145,7 +149,7 @@ jobs:
               ./option.sfs \
               -desc="busybox for arm64"
 
-          echo ">>> 打包 [mihomo NPK] ..."
+          print ">>> 打包 [mihomo NPK] ..."
           sudo -E python3 npk.py create \
               "$TEMPLATE_NPK" \
               "./all_packages-${ARCH}/mihomo-${VERSION}-${ARCH}.npk" \
@@ -164,43 +168,42 @@ jobs:
           sudo rm -rf ./all_packages-${ARCH}
           sudo rm all_packages-${ARCH}-${VERSION}.zip
 
-      - name: 安装基础依赖
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y zip unzip wget curl squashfs-tools python3-pip
-          # 使用 sudo 确保 pefile 安装到全局/root 环境中，防止后面的 sudo -E python3 找不到模块
-          sudo pip install pefile
-
-
       - name: 下载并 Patch Netinstall 工具
-
         run: |
           echo "8. 下载官方 Netinstall 工具..."
           sudo wget -nv -O netinstall.zip "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/${VERSION}/netinstall-${VERSION}.zip"
+          sudo wget -nv -O netinstall_linux.tar.gz "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/${VERSION}/netinstall-${VERSION}.tar.gz"
 
-          echo "9. 下载并patch Windows 版本 (netinstall.exe)..."
+          echo "9. Patch Windows 版本 (netinstall.exe)..."
           sudo unzip -q netinstall.zip
           if [ ! -f "./netinstall.exe" ]; then
               echo "错误: 未找到 netinstall.exe，解压可能失败！"
               exit 1
           fi
-          # 执行补丁
           sudo -E python3 patch.py netinstall netinstall.exe
           sudo zip -q netinstall-${VERSION}.zip ./netinstall.exe
-
-          echo "10. 清理临时解压文件"
           sudo rm -f ./netinstall.exe ./netinstall.zip 
+
+          echo "10. Patch Linux 版本 (netinstall)..."
+          sudo tar -xzf netinstall_linux.tar.gz
+          if [ ! -f "./netinstall" ]; then
+              echo "错误: 未找到 Linux 版 netinstall，解压可能失败！"
+              exit 1
+          fi
+          sudo -E python3 patch.py netinstall netinstall
+          sudo tar -czf netinstall-${VERSION}.tar.gz ./netinstall
+          sudo rm -f ./netinstall ./netinstall_linux.tar.gz
 
       - name: 自动发布到 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ inputs.version }}-arm64
-          name: RouterOS v${{ inputs.version }} Patched (arm64)
+          tag_name: v${{ env.VERSION }}-${{ env.ARCH }}
+          name: RouterOS v${{ env.VERSION }} Patched (${{ env.ARCH }})
           body_path: changelog.txt 
           files: |
-            routeros-${{ inputs.version }}-arm64-patch.npk
-            all_packages-arm64-${{ inputs.version }}-patched.zip
-            netinstall-${{ inputs.version }}.zip
-            netinstall-${{ inputs.version }}.tar.gz
+            routeros-${{ env.VERSION }}-${{ env.ARCH }}-patch.npk
+            all_packages-${{ env.ARCH }}-${{ env.VERSION }}-patched.zip
+            netinstall-${{ env.VERSION }}.zip
+            netinstall-${{ env.VERSION }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
