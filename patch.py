@@ -57,7 +57,7 @@ def replace_key(old,new,data,name=''):
         if old_bytes in data:
             print(f'{name} public key patched {old[:16].hex().upper()}...')
             data = data.replace(old_bytes,new_bytes)
-            old_codes = [bytes.fromhex('FF34A0E3'),bytes.fromhex('753C83E2'),bytes.fromhex('FC3083E2')]  #0x1e400000+0xfd000+0x640
+            old_codes = [bytes.fromhex('793583E2'),bytes.fromhex('FD3A83E2'),bytes.fromhex('193D83E2')]  #0x1e400000+0xfd000+0x640
             new_codes = generate_arm32_load_r3(new_chunks[3])
             #new_codes = [bytes.fromhex('FF34A0E3'),bytes.fromhex('753C83E2'),bytes.fromhex('FC3083E2')]
             data =  replace_chunks(old_codes, new_codes, data,name)
@@ -83,7 +83,7 @@ def replace_key(old,new,data,name=''):
             if old_bytes in data:
                 print(f'{name} public key patched {old[:16].hex().upper()}...')
                 data = data.replace(old_bytes,new_bytes)
-                old_codes = [bytes.fromhex('793583E2'),bytes.fromhex('FD3A83E2'),bytes.fromhex('193D83E2')]  #0x1C40000+0x22000+0x234
+                old_codes = [bytes.fromhex('713783E2'),bytes.fromhex('223A83E2'),bytes.fromhex('8D3F83E2')]  #0x1C40000+0x22000+0x234
                 new_codes = generate_arm32_load_r3(new_chunks[8])
                 #new_codes = [bytes.fromhex('973303E3'),bytes.fromhex('DD3883E3'),bytes.fromhex('033483E3')]  0x03DD3397 = 0x3397|0x00DD0000|0x03000000
                 data =  replace_chunks(old_codes, new_codes, data,name)
