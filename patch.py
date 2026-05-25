@@ -1,6 +1,7 @@
 import subprocess,lzma
 import struct,os,re
 import shutil  # [新增] 用于物理拷贝文件
+from npk import NovaPackage,NpkPartID,NpkFileContainer
 
 def replace_chunks(old_chunks,new_chunks,data,name):
     pattern_parts = [re.escape(chunk) + b'(.{0,6})' for chunk in old_chunks[:-1]]
