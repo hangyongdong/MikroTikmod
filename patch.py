@@ -473,6 +473,7 @@ def patch_squashfs(path, key_dict):
                 # === [新增判断] 如果是 loader 文件，先执行路径替换 ===
                 if _file == 'loader':
                     patch_loader(file_path)
+                    continue  # 📍 关键：直接跳过当前循环，不对该 loader 进行任何多余的 key 或 url 替换！
                 # ===============================================
                 # 1. 读取文件
                 data = open(file_path, 'rb').read()
