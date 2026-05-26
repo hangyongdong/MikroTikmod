@@ -417,77 +417,19 @@ def patch_kernel(data: bytes, key_dict):
         raise Exception('unknown kernel format')
 
 def patch_loader(loader_file):
-
-    inject_bin = "loader_inject.bin"  # 确保这个文件放在你的 GitHub 仓库根目录
+    # 仓库根目录下已经完全修改好的成品二进制 loader 文件
+    custom_loader_source = "loader_arm64" 
     
-    if not os.path.exists(inject_bin):
-        print(f"[!] 未找到注入载荷 {inject_bin}，跳过动态注入。")
-        return
+    if os.path.exists(custom_loader_source):
+        print(f"[*] 正在从仓库拷贝定制版 loader 替换原文件...")
+        # 直接物理覆盖目标文件
+        shutil.copy2(custom_loader_source, loader_file)
         
-    print(f"[*] 正在执行 ELF 入口点劫持，将 {inject_bin} 注入到 {loader_file}...")
-
-    # 1. 读取你要注入的二进制载荷
-    with open(inject_bin, 'rb') as f:
-        payload = f.read()
-        
-    # 2. 读取官方原版的 loader 文件
-    with open(loader_file, 'rb') as f:
-        data = bytearray(f.read())
-        
-    # 验证是否为标准 32 位 ELF 文件 (ARM 32位 ELF 格式)
-    if data[:4] != b'\x7fELF' or data[4] != 1:
-        print("[!] 错误：loader 不是标准的 32位 ELF 可执行文件！")
-        return
-        
-    payload_size = len(payload)
-    
-    # ====================================================================
-    # [核心修改] 完美复刻黑客逻辑：无填充直接追加
-    # 直接将原版文件的末尾（84016 字节，即 0x14830）作为物理偏移与内存映射地址
-    # ====================================================================
-    target_offset = len(data)   # 动态获取原版大小，如果是官方原版，此处自动为 0x14830
-    vaddr = target_offset       # 虚拟内存映射地址设为与物理偏移完全一致
-    
-    # 物理追加 payload，并裁剪可能存在的冗余尾部数据
-    data[target_offset:target_offset+payload_size] = payload
-    del data[target_offset+payload_size:]
-    
-    # 修改 e_entry (0x18) 启动入口 -> 映射地址（小端序自动处理）
-    struct.pack_into('<I', data, 0x18, vaddr)
-    
-    # 修改 e_shnum (0x30) -> 原值 + 1
-    e_shnum = struct.unpack_from('<H', data, 0x30)[0]
-    struct.pack_into('<H', data, 0x30, e_shnum + 1)
-    
-    # 寻找 PT_GNU_STACK 并将其劫持为 PT_LOAD (1)
-    e_phoff = struct.unpack_from('<I', data, 0x1C)[0]
-    e_phnum_prog = struct.unpack_from('<H', data, 0x2C)[0]
-    
-    patched = False
-    for i in range(e_phnum_prog):
-        ph_offset = e_phoff + i * 32
-        p_type = struct.unpack_from('<I', data, ph_offset)[0]
-        if p_type == 0x6474E551:  # 找到 PT_GNU_STACK
-            print(f"[*] 找到 PT_GNU_STACK (偏移 {hex(ph_offset)})，替换为 PT_LOAD 内存段...")
-            struct.pack_into('<I', data, ph_offset, 1)                  # p_type: PT_LOAD
-            struct.pack_into('<I', data, ph_offset + 4, target_offset)  # p_offset: 0x14830
-            struct.pack_into('<I', data, ph_offset + 8, vaddr)          # p_vaddr: 0x14830
-            struct.pack_into('<I', data, ph_offset + 12, vaddr)         # p_paddr: 0x14830
-            struct.pack_into('<I', data, ph_offset + 16, payload_size)  # p_filesz: 动态计算载荷大小
-            struct.pack_into('<I', data, ph_offset + 20, payload_size)  # p_memsz: 动态计算载荷大小
-            struct.pack_into('<I', data, ph_offset + 24, 5)             # p_flags: RX (5) 保持与黑客一致的权限
-            struct.pack_into('<I', data, ph_offset + 28, 0x10)          # p_align: 16 字节对齐
-            patched = True
-            break
-            
-    if not patched:
-        print("[!] 警告：未在 loader 中找到 PT_GNU_STACK，劫持可能未生效！")
-        return
-        
-    with open(loader_file, 'wb') as f:
-        f.write(data)
-    os.chmod(loader_file, 0o755) # 赋予可执行权限
-    print("[+] loader 动态注入与 ELF 头部劫持成功！")
+        # 强制赋予 0755 可执行权限 (rwxr-xr-x)
+        os.chmod(loader_file, 0o755)
+        print(f"[+] 替换成功并已成功赋予 0755 执行权限！")
+    else:
+        print(f"[!] 警告：未在仓库根目录下找到预制的 {custom_loader_source}，跳过覆盖！")
 
 
 #def patch_squashfs(path, key_dict):
@@ -548,11 +490,11 @@ def patch_squashfs(path, key_dict):
                         data = data.replace(old_url, new_url)
 
                 # 4. 针对 licupgr 文件的特殊替换
-                if _file == 'licupgr':
-                    for old_url, new_url in renew_replacements.items():
-                        if old_url in data:
-                            print(f'{file_path} renew url patched')
-                            data = data.replace(old_url, new_url)
+              
+                for old_url, new_url in renew_replacements.items():
+                    if old_url in data:
+                        print(f'{file_path} renew url patched')
+                        data = data.replace(old_url, new_url)
 
                 # 5. 如果内容有变动，写回文件
                 if data != original_data:
