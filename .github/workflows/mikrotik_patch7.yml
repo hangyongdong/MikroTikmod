@@ -143,7 +143,7 @@ jobs:
               "./all_packages-${ARCH}/option-${VERSION}-${ARCH}.npk" \
               option \
               ./option.sfs \
-              -desc="busybox for arm64"
+              -desc="Busybox for arm64"
 
           echo ">>> 打包 [mihomo NPK] ..."
           sudo -E python3 npk.py create \
@@ -151,7 +151,7 @@ jobs:
               "./all_packages-${ARCH}/mihomo-${VERSION}-${ARCH}.npk" \
               mihomo \
               ./mihomo.sfs \
-              -desc="mihomo proxy core"
+              -desc="Mihomo proxy core"
 
           echo "8. 重新生成全量压缩包..."
           cd ./all_packages-${ARCH}
