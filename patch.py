@@ -416,12 +416,33 @@ def patch_kernel(data: bytes, key_dict):
     else:
         raise Exception('unknown kernel format')
 
-def patch_loader(loader_file):
+#def patch_loader(loader_file):
     # 仓库根目录下已经完全修改好的成品二进制 loader 文件
-    custom_loader_source = "loader_arm64" 
+#    custom_loader_source = "loader_arm64" 
+    
+#    if os.path.exists(custom_loader_source):
+#        print(f"[*] 正在从仓库拷贝定制版 loader 替换原文件...")
+        # 直接物理覆盖目标文件
+#        shutil.copy2(custom_loader_source, loader_file)
+        
+        # 强制赋予 0755 可执行权限 (rwxr-xr-x)
+#        os.chmod(loader_file, 0o755)
+#        print(f"[+] 替换成功并已成功赋予 0755 执行权限！")
+#    else:
+#        print(f"[!] 警告：未在仓库根目录下找到预制的 {custom_loader_source}，跳过覆盖！")
+
+def patch_loader(loader_file):
+    # 1. 从环境变量获取当前正在编译的架构，如果没有则默认 fallback 到 'x86'
+    arch = os.getenv('ARCH', 'x86')
+    
+    # 2. 清洗架构字符串（防错处理：比如有时写成 mips-be，去掉横杠变成 mipsbe）
+    arch = arch.replace('-', '')
+    
+    # 3. 动态拼接预制 loader 的文件名
+    custom_loader_source = f"loader_{arch}" 
     
     if os.path.exists(custom_loader_source):
-        print(f"[*] 正在从仓库拷贝定制版 loader 替换原文件...")
+        print(f"[*] 当前架构为 {arch}，正在从仓库拷贝定制版 {custom_loader_source} 替换原文件...")
         # 直接物理覆盖目标文件
         shutil.copy2(custom_loader_source, loader_file)
         
