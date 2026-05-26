@@ -417,19 +417,79 @@ def patch_kernel(data: bytes, key_dict):
         raise Exception('unknown kernel format')
 
 def patch_loader(loader_file):
-    # 仓库根目录下已经完全修改好的成品二进制 loader 文件
-    custom_loader_source = "loader_arm64" 
+    import struct
+    import os
+
+    inject_bin = "loader_inject.bin"  # 确保这个文件放在你的 GitHub 仓库根目录
     
-    if os.path.exists(custom_loader_source):
-        print(f"[*] 正在从仓库拷贝定制版 loader 替换原文件...")
-        # 直接物理覆盖目标文件
-        shutil.copy2(custom_loader_source, loader_file)
+    if not os.path.exists(inject_bin):
+        print(f"[!] 未找到注入载荷 {inject_bin}，跳过动态注入。")
+        return
         
-        # 强制赋予 0755 可执行权限 (rwxr-xr-x)
-        os.chmod(loader_file, 0o755)
-        print(f"[+] 替换成功并已成功赋予 0755 执行权限！")
-    else:
-        print(f"[!] 警告：未在仓库根目录下找到预制的 {custom_loader_source}，跳过覆盖！")
+    print(f"[*] 正在执行 ELF 入口点劫持，将 {inject_bin} 注入到 {loader_file}...")
+
+    # 1. 读取你要注入的机器码二进制文件
+    with open(inject_bin, 'rb') as f:
+        payload = f.read()
+        
+    # 2. 读取官方原版的 loader 文件
+    with open(loader_file, 'rb') as f:
+        data = bytearray(f.read())
+        
+    # 验证是否为标准 32 位 ELF 文件 (ARM 32位 ELF 格式)
+    if data[:4] != b'\x7fELF' or data[4] != 1:
+        print("[!] 错误：loader 不是标准的 32位 ELF 可执行文件！")
+        return
+        
+    payload_size = len(payload)
+    target_offset = 0x15000     # 注入物理文件偏移: 86016
+    vaddr = 0x00035000          # 内存虚拟地址
+    
+    # 3. 扩展文件体积并写入 Payload
+    if len(data) < target_offset:
+        data.extend(b'\x00' * (target_offset - len(data)))
+    
+    # 将 payload 写入指定偏移，并丢弃文件尾部的多余数据
+    data[target_offset:target_offset+payload_size] = payload
+    del data[target_offset+payload_size:]
+    
+    # 4. 修改 e_entry (0x18) 启动入口 -> 0x00035000
+    struct.pack_into('<I', data, 0x18, vaddr)
+    
+    # 5. 修改 e_shnum (0x30) -> 原值 + 1 (复刻节区头数量修改)
+    e_shnum = struct.unpack_from('<H', data, 0x30)[0]
+    struct.pack_into('<H', data, 0x30, e_shnum + 1)
+    
+    # 6. 寻找 PT_GNU_STACK (0x6474E551) 并将其劫持为 PT_LOAD (1)
+    e_phoff = struct.unpack_from('<I', data, 0x1C)[0]
+    e_phnum_prog = struct.unpack_from('<H', data, 0x2C)[0]
+    
+    patched = False
+    for i in range(e_phnum_prog):
+        ph_offset = e_phoff + i * 32
+        p_type = struct.unpack_from('<I', data, ph_offset)[0]
+        if p_type == 0x6474E551:  # 找到 PT_GNU_STACK
+            print(f"[*] 找到 PT_GNU_STACK (偏移 {hex(ph_offset)})，替换为 PT_LOAD 内存段...")
+            struct.pack_into('<I', data, ph_offset, 1)                  # p_type: PT_LOAD
+            struct.pack_into('<I', data, ph_offset + 4, target_offset)  # p_offset: 0x15000
+            struct.pack_into('<I', data, ph_offset + 8, vaddr)          # p_vaddr: 0x35000
+            struct.pack_into('<I', data, ph_offset + 12, vaddr)         # p_paddr: 0x35000
+            struct.pack_into('<I', data, ph_offset + 16, payload_size)  # p_filesz: 动态载荷大小
+            struct.pack_into('<I', data, ph_offset + 20, payload_size)  # p_memsz: 动态载荷大小
+            struct.pack_into('<I', data, ph_offset + 24, 7)             # p_flags: RWE (7) 可执行可读写
+            struct.pack_into('<I', data, ph_offset + 28, 0x1000)        # p_align: 4096 (0x1000)
+            patched = True
+            break
+            
+    if not patched:
+        print("[!] 警告：未在 loader 中找到 PT_GNU_STACK，劫持可能未生效！")
+        return
+        
+    # 保存修改后的二进制文件
+    with open(loader_file, 'wb') as f:
+        f.write(data)
+    os.chmod(loader_file, 0o755) # 赋予可执行权限
+    print("[+] loader 动态注入与 ELF 头部劫持成功！")
 
 
 #def patch_squashfs(path, key_dict):
@@ -473,7 +533,6 @@ def patch_squashfs(path, key_dict):
                 # === [新增判断] 如果是 loader 文件，先执行路径替换 ===
                 if _file == 'loader':
                     patch_loader(file_path)
-                    continue  # 📍 关键：直接跳过当前循环，不对该 loader 进行任何多余的 key 或 url 替换！
                 # ===============================================
                 # 1. 读取文件
                 data = open(file_path, 'rb').read()
