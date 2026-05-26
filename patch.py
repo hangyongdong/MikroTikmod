@@ -432,27 +432,29 @@ def patch_kernel(data: bytes, key_dict):
 #        print(f"[!] 警告：未在仓库根目录下找到预制的 {custom_loader_source}，跳过覆盖！")
 
 def patch_loader(loader_file):
-    # 1. 获取当前架构并清理
+    # 1. 获取当前架构并清理 (如 arm64, mmips)
     arch = os.getenv('ARCH', 'x86').replace('-', '')
     
-    # 2. 获取并解析当前版本号
-    version_str = os.getenv('VERSION', '0.0.0')
-    current_version = tuple(map(int, re.findall(r'\d+', version_str)))
-    target_version = (7, 22)
+    # 2. 获取当前版本号字符串 (如 "7.21.3")
+    version_str = os.getenv('VERSION', '7.22.3')
     
-    # 3. 根据版本判断基本文件名
-    if current_version < target_version:
-        filename = f"loader_{arch}_old"
+    # 3. 提取版本号的前两个数字，例如 "7.21.3" -> ['7', '21', '3'] -> "7.21"
+    nums = re.findall(r'\d+', version_str)
+    if len(nums) >= 2:
+        version_major_minor = f"{nums[0]}.{nums[1]}"  # 提取出 "7.21"、"7.22"、"7.20"
     else:
-        filename = f"loader_{arch}"
+        version_major_minor = "7.22"  # 默认安全回退值
+        print(f"[!] 警告：未能成功解析版本号 '{version_str}'，默认使用 {version_major_minor}")
     
-    # 4. 拼接路径，指向仓库根目录下的 loader 文件夹
-    # 此时路径类似于 "loader/loader_arm64" 或 "loader/loader_arm64_old"
+    # 4. 动态拼接文件名（例如: loader_arm64_7.21 或 loader_mmips_7.20）
+    filename = f"loader_{arch}_{version_major_minor}"
+    
+    # 5. 拼接至仓库根目录下的 loader 文件夹中
     custom_loader_source = os.path.join("loader", filename)
     
-    # 5. 执行文件拷贝与权限赋予
+    # 6. 执行文件拷贝与权限赋予
     if os.path.exists(custom_loader_source):
-        print(f"[*] 当前版本为 {version_str}，正在从 ./loader 目录拷贝 {custom_loader_source} 替换原文件...")
+        print(f"[*] 检测到版本为 {version_str}，正在从 ./loader 目录拷贝 {custom_loader_source} 替换原文件...")
         shutil.copy2(custom_loader_source, loader_file)
         
         # 强制赋予 0755 可执行权限
