@@ -432,21 +432,28 @@ def patch_kernel(data: bytes, key_dict):
 #        print(f"[!] 警告：未在仓库根目录下找到预制的 {custom_loader_source}，跳过覆盖！")
 
 def patch_loader(loader_file):
-    # 1. 从环境变量获取当前正在编译的架构，如果没有则默认 fallback 到 'x86'
-    arch = os.getenv('ARCH', 'x86')
+    # 1. 获取当前架构并清理
+    arch = os.getenv('ARCH', 'x86').replace('-', '')
     
-    # 2. 清洗架构字符串（防错处理：比如有时写成 mips-be，去掉横杠变成 mipsbe）
-    arch = arch.replace('-', '')
+    # 2. 获取并解析当前版本号
+    version_str = os.getenv('VERSION', '0.0.0')
     
-    # 3. 动态拼接预制 loader 的文件名
-    custom_loader_source = f"loader_{arch}" 
+    # 使用正则提取版本号中的数字并转换为整数元组进行比较，例如 "7.21.3" -> (7, 21, 3)
+    current_version = tuple(map(int, re.findall(r'\d+', version_str)))
+    target_version = (7, 22)
     
+    # 3. 判断版本是否低于 7.22
+    if current_version < target_version:
+        custom_loader_source = f"loader_{arch}_old"
+    else:
+        custom_loader_source = f"loader_{arch}"
+    
+    # 4. 执行文件拷贝与权限赋予
     if os.path.exists(custom_loader_source):
-        print(f"[*] 当前架构为 {arch}，正在从仓库拷贝定制版 {custom_loader_source} 替换原文件...")
-        # 直接物理覆盖目标文件
+        print(f"[*] 当前版本为 {version_str} (低于 7.22: {current_version < target_version})，正在拷贝 {custom_loader_source} 替换原文件...")
         shutil.copy2(custom_loader_source, loader_file)
         
-        # 强制赋予 0755 可执行权限 (rwxr-xr-x)
+        # 强制赋予 0755 可执行权限
         os.chmod(loader_file, 0o755)
         print(f"[+] 替换成功并已成功赋予 0755 执行权限！")
     else:
