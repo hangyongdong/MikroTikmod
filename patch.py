@@ -437,27 +437,29 @@ def patch_loader(loader_file):
     
     # 2. 获取并解析当前版本号
     version_str = os.getenv('VERSION', '0.0.0')
-    
-    # 使用正则提取版本号中的数字并转换为整数元组进行比较，例如 "7.21.3" -> (7, 21, 3)
     current_version = tuple(map(int, re.findall(r'\d+', version_str)))
     target_version = (7, 22)
     
-    # 3. 判断版本是否低于 7.22
+    # 3. 根据版本判断基本文件名
     if current_version < target_version:
-        custom_loader_source = f"loader_{arch}_old"
+        filename = f"loader_{arch}_old"
     else:
-        custom_loader_source = f"loader_{arch}"
+        filename = f"loader_{arch}"
     
-    # 4. 执行文件拷贝与权限赋予
+    # 4. 拼接路径，指向仓库根目录下的 loader 文件夹
+    # 此时路径类似于 "loader/loader_arm64" 或 "loader/loader_arm64_old"
+    custom_loader_source = os.path.join("loader", filename)
+    
+    # 5. 执行文件拷贝与权限赋予
     if os.path.exists(custom_loader_source):
-        print(f"[*] 当前版本为 {version_str} (低于 7.22: {current_version < target_version})，正在拷贝 {custom_loader_source} 替换原文件...")
+        print(f"[*] 当前版本为 {version_str}，正在从 ./loader 目录拷贝 {custom_loader_source} 替换原文件...")
         shutil.copy2(custom_loader_source, loader_file)
         
         # 强制赋予 0755 可执行权限
         os.chmod(loader_file, 0o755)
         print(f"[+] 替换成功并已成功赋予 0755 执行权限！")
     else:
-        print(f"[!] 警告：未在仓库根目录下找到预制的 {custom_loader_source}，跳过覆盖！")
+        print(f"[!] 警告：未在 ./loader 目录下找到预制的 {custom_loader_source}，跳过覆盖！")
 
 
 #def patch_squashfs(path, key_dict):
