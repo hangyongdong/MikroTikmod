@@ -189,13 +189,11 @@ jobs:
           # 2. 拷贝主系统包，并将其重命名为官方标准名称 (去除 -patch)
           cp routeros-${VERSION}-${ARCH}-patch.npk ./vps_upload/${VERSION}/routeros-${VERSION}-${ARCH}.npk
           
-          # 3. 规范化 wifi-qcom 文件名 (在 vps_upload 目录中操作，不影响 Release)
+          # 3. 规范化 wifi-qcom 文件名
           cd ./vps_upload/${VERSION}
           
-          # 删除不需要的 -R 版本
           rm -f wifi-qcom-${VERSION}-${ARCH}-R.npk
           
-          # 将 -X 版本的名字恢复成官方标准的驱动包名
           if [ -f "wifi-qcom-${VERSION}-${ARCH}-X.npk" ]; then
               mv wifi-qcom-${VERSION}-${ARCH}-X.npk wifi-qcom-${VERSION}-${ARCH}.npk
               echo ">>> 已将 wifi-qcom X 版本格式化为官方标准名称。"
@@ -230,7 +228,6 @@ jobs:
           ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
           
           echo ">>> 正在通过 Rsync 将固件推送到 VPS..."
-          # 同步版本文件夹 (包含重命名后的 NPK、csv 和 CHANGELOG)
           rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
           
           # 如果生成了 NEWEST 文件，同步到网站根目录
