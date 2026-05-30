@@ -8,15 +8,10 @@ on:
         required: true
         type: string
       publish_to_vps:
-        description: '是否同步发布到 VPS 升级服务器'
+        description: '是否同步发布到升级服务器'
         required: true
         type: boolean
         default: false
-      is_latest:
-        description: '是否更新 NEWEST 文件 (设为最新版本)'
-        required: true
-        type: boolean
-        default: true
       channel:
         description: '更新频道'
         required: true
@@ -182,24 +177,22 @@ jobs:
           echo ">>> 准备 VPS 部署环境..."
           mkdir -p ./vps_upload/${VERSION}
           
-          # 1. 拷贝所有的额外包 (从 all_packages 目录)
+          # 1. 拷贝所有的扩展包
           cp ./all_packages-${ARCH}/*.npk ./vps_upload/${VERSION}/
           cp changelog.txt ./vps_upload/${VERSION}/CHANGELOG
           
-          # 2. 拷贝主系统包，并将其重命名为官方标准名称 (去除 -patch)
+          # 2. 拷贝主系统包
           cp routeros-${VERSION}-${ARCH}-patch.npk ./vps_upload/${VERSION}/routeros-${VERSION}-${ARCH}.npk
           
           # 3. 规范化 wifi-qcom 文件名
           cd ./vps_upload/${VERSION}
-          
           rm -f wifi-qcom-${VERSION}-${ARCH}-R.npk
-          
           if [ -f "wifi-qcom-${VERSION}-${ARCH}-X.npk" ]; then
               mv wifi-qcom-${VERSION}-${ARCH}-X.npk wifi-qcom-${VERSION}-${ARCH}.npk
-              echo ">>> 已将 wifi-qcom X 版本格式化为官方标准名称。"
+              echo ">>> 已将 wifi-qcom X 版本格式化为标准名称。"
           fi
           
-          # 4. 生成 packages.csv (现在所有包名都是标准的官方格式了)
+          # 4. 生成 packages.csv
           echo ">>> 正在生成 packages.csv..."
           echo "arch,name,size" > packages.csv
           for file in *.npk; do
@@ -214,8 +207,29 @@ jobs:
           done
           cd ../../
           
-          # 5. 检查是否需要更新 NEWEST 文件
-          if [ "${{ inputs.is_latest }}" == "true" ]; then
+          # 5. 判断是否需要更新 NEWEST 文件
+          echo ">>> 正在对比远程与当前版本号..."
+          REMOTE_NEWEST=$(curl -sL "https://${CUSTOM_UPGRADE_URL}/NEWESTa7.${CHANNEL}" || echo "")
+          REMOTE_VERSION=$(echo "$REMOTE_NEWEST" | awk '{print $1}')
+          
+          UPDATE_NEWEST=false
+          if [ -z "$REMOTE_VERSION" ]; then
+              echo ">>> 未获取到线上最新版本号 (可能是首次发布或文件不存在)，将创建 NEWEST 文件。"
+              UPDATE_NEWEST=true
+          elif [ "$VERSION" == "$REMOTE_VERSION" ]; then
+              echo ">>> 当前编译版本 ($VERSION) 与线上版本 ($REMOTE_VERSION) 相同，跳过更新 NEWEST 文件。"
+          else
+              # 使用 sort -V 进行语义化版本号大小对比
+              HIGHEST=$(printf "%s\n%s" "$REMOTE_VERSION" "$VERSION" | sort -V | tail -n1)
+              if [ "$HIGHEST" == "$VERSION" ]; then
+                  echo ">>> 当前编译版本 ($VERSION) 大于 线上版本 ($REMOTE_VERSION)，将更新 NEWEST 文件。"
+                  UPDATE_NEWEST=true
+              else
+                  echo ">>> 当前编译版本 ($VERSION) 小于 线上版本 ($REMOTE_VERSION)，跳过更新 NEWEST 文件。"
+              fi
+          fi
+
+          if [ "$UPDATE_NEWEST" == "true" ]; then
               echo ">>> 正在生成最新版本声明文件 (NEWESTa7.${CHANNEL})..."
               BUILD_TIME=$(date +%s)
               echo "${VERSION} ${BUILD_TIME}" > ./vps_upload/NEWESTa7.${CHANNEL}
@@ -228,6 +242,7 @@ jobs:
           ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
           
           echo ">>> 正在通过 Rsync 将固件推送到 VPS..."
+          # 同步版本文件夹
           rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
           
           # 如果生成了 NEWEST 文件，同步到网站根目录
@@ -235,7 +250,7 @@ jobs:
               rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/NEWESTa7.${CHANNEL} $SSH_USER@$SSH_HOST:$WEB_DIR/
               echo ">>> NEWESTa7.${CHANNEL} 已同步，当前设为了最新版本！"
           else
-              echo ">>> 未勾选设为最新版，跳过更新 NEWESTa7 文件。"
+              echo ">>> 本次发布非最新版，已安全跳过 NEWESTa7 文件的覆盖。"
           fi
           echo ">>> VPS 部署任务完成！"
 
