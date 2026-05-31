@@ -2,7 +2,6 @@ name: Auto MikroTik RouterOS V7 Release & Publisher
 
 on:
   schedule:
-    # GitHub Action 使用 UTC 时间，UTC 04:00 对应北京时间 (UTC+8) 的 12:00 中午
     - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
@@ -30,9 +29,6 @@ permissions:
   contents: write
 
 jobs:
-  # ==========================================
-  # 任务 1: 检查官方更新并生成矩阵 (每天中午运行)
-  # ==========================================
   check-updates:
     name: 🔍 检查版本更新
     runs-on: ubuntu-latest
@@ -44,13 +40,10 @@ jobs:
         env:
           CUSTOM_UPGRADE_URL: ${{ secrets.CUSTOM_UPGRADE_URL }}
         run: |
-          # 1. 如果是手动触发 (workflow_dispatch)，直接封装用户的输入并传给下一步
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
               echo ">>> 检测到手动触发，使用指定的版本和频道..."
-              # 处理布尔值转换
               PUB_VPS="${{ inputs.publish_to_vps }}"
               if [ "$PUB_VPS" == "true" ]; then IS_PUB="true"; else IS_PUB="false"; fi
-              
               JSON_ARRAY=$(jq -n -c \
                 --arg v "${{ inputs.version }}" \
                 --arg c "${{ inputs.channel }}" \
@@ -60,17 +53,14 @@ jobs:
               exit 0
           fi
 
-          # 2. 如果是定时器触发 (schedule)，循环扫描 4 个频道
           echo ">>> 开启自动巡检模式..."
           JSON_ARRAY="[]"
           
           for channel in stable long-term testing development; do
               echo ">>> 正在检查频道: $channel"
-              # 获取官方最新版本
               OFFICIAL_NEWEST=$(curl -sL "https://upgrade.mikrotik.com/routeros/NEWESTa7.$channel" || echo "")
               OFFICIAL_VER=$(echo "$OFFICIAL_NEWEST" | awk '{print $1}')
               
-              # 获取您个人服务器上的版本
               CUSTOM_NEWEST=$(curl -sL "https://${CUSTOM_UPGRADE_URL}/NEWESTa7.$channel" || echo "")
               CUSTOM_VER=$(echo "$CUSTOM_NEWEST" | awk '{print $1}')
               
@@ -80,15 +70,18 @@ jobs:
                       echo "  - 本地无记录，准备首次发布: $OFFICIAL_VER"
                       UPDATE=true
                   elif [ "$OFFICIAL_VER" != "$CUSTOM_VER" ]; then
-                      HIGHEST=$(printf "%s\n%s" "$OFFICIAL_VER" "$CUSTOM_VER" | sort -V | tail -n1)
-                      if [ "$HIGHEST" == "$OFFICIAL_VER" ]; then
+                      # 精确处理: 在 beta, rc, alpha 前加上 ~ 符号，以符合 Debian 的严格版本排序规范
+                      NORM_OFFICIAL=$(echo "$OFFICIAL_VER" | sed -E 's/(beta|rc|alpha)/~\1/g')
+                      NORM_CUSTOM=$(echo "$CUSTOM_VER" | sed -E 's/(beta|rc|alpha)/~\1/g')
+                      
+                      # 使用 Ubuntu 底层的 dpkg 命令进行语义化比较 (处理能力比 sort -V 更强更准)
+                      if dpkg --compare-versions "$NORM_OFFICIAL" gt "$NORM_CUSTOM"; then
                           echo "  - 发现新版本: $CUSTOM_VER -> $OFFICIAL_VER"
                           UPDATE=true
                       fi
                   fi
                   
                   if [ "$UPDATE" = true ]; then
-                      # 将需要更新的版本加入矩阵（开启自动推送到 VPS）
                       JSON_ARRAY=$(echo "$JSON_ARRAY" | jq -c --arg v "$OFFICIAL_VER" --arg c "$channel" '. += [{"version": $v, "channel": $c, "publish_to_vps": true}]')
                   else
                       echo "  - 已是最新版 ($CUSTOM_VER)，跳过。"
@@ -99,22 +92,17 @@ jobs:
           echo ">>> 最终构建矩阵: $JSON_ARRAY"
           echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
 
-  # ==========================================
-  # 任务 2: 编译与发布 (根据矩阵动态启动)
-  # ==========================================
   patch-and-pack:
     name: 📦 编译发布 (${{ matrix.build.channel }} - ${{ matrix.build.version }})
     needs: check-updates
-    # 如果矩阵为空数组 [] (无更新)，则直接跳过整个编译任务
     if: ${{ needs.check-updates.outputs.matrix != '[]' }}
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false # 即使某个频道编译失败，也不中断其他频道的编译
+      fail-fast: false
       matrix:
         build: ${{ fromJson(needs.check-updates.outputs.matrix) }}
     
     env:
-      # ⚠️ 注意这里：将原来的 inputs 换成了 matrix 传入的值
       VERSION: ${{ matrix.build.version }}
       CHANNEL: ${{ matrix.build.channel }}
       ARCH: 'arm64'
@@ -261,14 +249,10 @@ jobs:
           echo ">>> 准备 VPS 部署环境..."
           mkdir -p ./vps_upload/${VERSION}
           
-          # 1. 拷贝所有的扩展包
           cp ./all_packages-${ARCH}/*.npk ./vps_upload/${VERSION}/
           cp changelog.txt ./vps_upload/${VERSION}/CHANGELOG
-          
-          # 2. 拷贝主系统包
           cp routeros-${VERSION}-${ARCH}-patch.npk ./vps_upload/${VERSION}/routeros-${VERSION}-${ARCH}.npk
           
-          # 3. 规范化 wifi-qcom 文件名
           cd ./vps_upload/${VERSION}
           rm -f wifi-qcom-${VERSION}-${ARCH}-R.npk
           if [ -f "wifi-qcom-${VERSION}-${ARCH}-X.npk" ]; then
@@ -276,7 +260,6 @@ jobs:
               echo ">>> 已将 wifi-qcom X 版本格式化为标准名称。"
           fi
           
-          # 4. 生成 packages.csv
           echo ">>> 正在生成 packages.csv..."
           echo "arch,name,size" > packages.csv
           for file in *.npk; do
@@ -291,25 +274,26 @@ jobs:
           done
           cd ../../
           
-          # 5. 判断是否需要更新 NEWEST 文件
           echo ">>> 正在对比远程与当前版本号..."
           REMOTE_NEWEST=$(curl -sL "https://${CUSTOM_UPGRADE_URL}/NEWESTa7.${CHANNEL}" || echo "")
           REMOTE_VERSION=$(echo "$REMOTE_NEWEST" | awk '{print $1}')
           
           UPDATE_NEWEST=false
           if [ -z "$REMOTE_VERSION" ]; then
-              echo ">>> 未获取到线上最新版本号 (可能是首次发布或文件不存在)，将创建 NEWEST 文件。"
+              echo ">>> 未获取到线上最新版本号，将创建 NEWEST 文件。"
               UPDATE_NEWEST=true
           elif [ "$VERSION" == "$REMOTE_VERSION" ]; then
               echo ">>> 当前编译版本 ($VERSION) 与线上版本 ($REMOTE_VERSION) 相同，跳过更新 NEWEST 文件。"
           else
-              # 使用 sort -V 进行语义化版本号大小对比
-              HIGHEST=$(printf "%s\n%s" "$REMOTE_VERSION" "$VERSION" | sort -V | tail -n1)
-              if [ "$HIGHEST" == "$VERSION" ]; then
+              # 对比发布时的防误覆盖保护，同样使用 dpkg --compare-versions
+              NORM_REMOTE=$(echo "$REMOTE_VERSION" | sed -E 's/(beta|rc|alpha)/~\1/g')
+              NORM_LOCAL=$(echo "$VERSION" | sed -E 's/(beta|rc|alpha)/~\1/g')
+              
+              if dpkg --compare-versions "$NORM_LOCAL" gt "$NORM_REMOTE"; then
                   echo ">>> 当前编译版本 ($VERSION) 大于 线上版本 ($REMOTE_VERSION)，将更新 NEWEST 文件。"
                   UPDATE_NEWEST=true
               else
-                  echo ">>> 当前编译版本 ($VERSION) 小于 线上版本 ($REMOTE_VERSION)，跳过更新 NEWEST 文件。"
+                  echo ">>> 当前编译版本 ($VERSION) 小于或等于 线上版本 ($REMOTE_VERSION)，跳过更新 NEWEST 文件。"
               fi
           fi
 
@@ -319,17 +303,14 @@ jobs:
               echo "${VERSION} ${BUILD_TIME}" > ./vps_upload/NEWESTa7.${CHANNEL}
           fi
           
-          # 6. 配置 SSH 私钥
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
           
           echo ">>> 正在通过 Rsync 将固件推送到 VPS..."
-          # 同步版本文件夹
           rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
           
-          # 如果生成了 NEWEST 文件，同步到网站根目录
           if [ -f "./vps_upload/NEWESTa7.${CHANNEL}" ]; then
               rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/NEWESTa7.${CHANNEL} $SSH_USER@$SSH_HOST:$WEB_DIR/
               echo ">>> NEWESTa7.${CHANNEL} 已同步，当前设为了最新版本！"
@@ -361,7 +342,6 @@ jobs:
       - name: 自动发布到 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # 为了区分可能同一天多频道发布的情况，在 tag 加上了频道名
           tag_name: v${{ env.VERSION }}-${{ env.CHANNEL }}-${{ env.ARCH }}
           name: RouterOS v${{ env.VERSION }} Patched (${{ env.CHANNEL }} - ${{ env.ARCH }})
           body_path: changelog.txt 
