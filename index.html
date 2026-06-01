@@ -11,6 +11,12 @@
         body { background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
         .hover-card:hover { transform: translateY(-2px); transition: all 0.2s ease-in-out; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        
+        /* 优化的美观滚动条 (专门给 CHANGELOG 窗口使用) */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="text-gray-800 antialiased min-h-screen flex flex-col">
@@ -21,8 +27,8 @@
             <div class="text-xl font-bold tracking-wider flex items-center">
                 <i class="fa-solid fa-router mr-3 text-2xl"></i> RouterOS 固件分发中心
             </div>
-            <div class="text-sm bg-blue-700 px-3 py-1 rounded-full border border-blue-500 shadow-inner">
-                <i class="fa-solid fa-server mr-1"></i> Tencent EdgeOne 全球加速
+            <div class="text-sm bg-blue-700 px-3 py-1 rounded-full border border-blue-500 shadow-inner hidden sm:block">
+                <i class="fa-solid fa-server mr-1"></i> Tencent EdgeOne全球加速
             </div>
         </div>
     </nav>
@@ -37,7 +43,6 @@
                 <p class="text-gray-500 text-sm"><i class="fa-regular fa-clock mr-1"></i> 选择不同版本无缝下载对应系统包及扩展包</p>
             </div>
             
-            <!-- 美观的下拉版本选择器 -->
             <div class="flex items-center gap-3 w-full md:w-auto">
                 <label for="version-selector" class="text-gray-600 font-medium text-sm whitespace-nowrap">当前版本:</label>
                 <div class="relative w-full md:w-56">
@@ -53,8 +58,18 @@
 
         <!-- 主系统包下载 (单独高亮显示) -->
         <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-blue-500">主系统包 (Main Package)</h2>
-        <div id="main-package-container" class="mb-8">
+        <div id="main-package-container" class="mb-6">
             <!-- JS 动态渲染 -->
+        </div>
+
+        <!-- 🌟 新增：CHANGELOG 滚动窗口 -->
+        <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-green-500">更新日志 (Changelog)</h2>
+        <div class="mb-8 bg-gray-50 border border-gray-200 rounded-lg shadow-inner relative">
+            <div id="changelog-container" class="p-4 h-48 overflow-y-auto custom-scrollbar text-sm text-gray-700 font-mono whitespace-pre-wrap leading-relaxed">
+                <!-- JS 动态渲染 -->
+            </div>
+            <!-- 底部渐变遮罩，提示用户下方还有内容可滚动 -->
+            <div class="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none rounded-b-lg"></div>
         </div>
 
         <!-- 扩展包列表 -->
@@ -67,14 +82,14 @@
 
     <!-- 页脚 -->
     <footer class="bg-gray-800 text-gray-400 py-6 text-center text-sm mt-auto">
-        <p>© 2026 RouterOS Custom Mirror. Powered by Cloudflare R2.</p>
+        <p>© 2026 RouterOS Custom Mirror. Powered by  红尘有爱</p>
     </footer>
 
     <!-- 核心逻辑脚本 -->
     <script>
-        const BASE_URL = '/routeros'; 
+        // 智能获取基础路径：完美兼容 /routeros 后缀 或 直接解析到根目录的新域名
+        const BASE_URL = window.location.pathname.includes('/routeros') ? '/routeros' : '';
         
-        // 格式化文件大小 (Bytes -> MB)
         function formatBytes(bytes) {
             if (!bytes || bytes === 0) return '未知大小';
             const k = 1024;
@@ -82,18 +97,17 @@
             return mb.toFixed(2) + ' MB';
         }
 
-        // 初始化：拉取版本列表并填充下拉菜单
         async function initPage() {
             const selector = document.getElementById('version-selector');
             try {
-                // 1. 尝试拉取自动生成的 versions.json
+                // 1. 获取自动生成的 versions.json
                 const res = await fetch(`${BASE_URL}/versions.json?t=${new Date().getTime()}`);
                 let versions = [];
                 if (res.ok) {
                     versions = await res.json();
                 }
 
-                // 2. 拉取 NEWESTa7.stable 获取默认的“最新版本”
+                // 2. 获取 NEWESTa7.stable 获取最新版本号
                 const newestRes = await fetch(`${BASE_URL}/NEWESTa7.stable?t=${new Date().getTime()}`);
                 let latestVersion = "";
                 if (newestRes.ok) {
@@ -101,14 +115,8 @@
                     latestVersion = newestText.split(' ')[0].trim();
                 }
 
-                // 兜底逻辑：如果 versions.json 获取失败，至少把最新的版本填进去
-                if (versions.length === 0 && latestVersion) {
-                    versions = [latestVersion];
-                }
-
-                if (versions.length === 0) {
-                    throw new Error("未能获取任何版本记录");
-                }
+                if (versions.length === 0 && latestVersion) versions = [latestVersion];
+                if (versions.length === 0) throw new Error("未能获取任何版本记录");
 
                 // 3. 填充下拉菜单
                 selector.innerHTML = '';
@@ -120,11 +128,9 @@
                     selector.appendChild(opt);
                 });
 
-                // 4. 默认加载初始选中的版本数据
                 const defaultVersion = latestVersion || versions[0];
                 loadVersionData(defaultVersion);
 
-                // 5. 监听下拉菜单改变事件
                 selector.addEventListener('change', (e) => {
                     loadVersionData(e.target.value);
                 });
@@ -136,13 +142,14 @@
             }
         }
 
-        // 加载指定版本的固件及扩展包数据
         async function loadVersionData(version) {
             const mainContainer = document.getElementById('main-package-container');
+            const changelogContainer = document.getElementById('changelog-container');
             const gridContainer = document.getElementById('packages-grid');
 
-            // 显示加载骨架
+            // 显示加载状态 (骨架屏)
             mainContainer.innerHTML = `<div class="animate-pulse bg-gray-200 h-20 rounded-lg"></div>`;
+            changelogContainer.innerHTML = `<div class="text-gray-400 text-center mt-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在拉取更新日志...</div>`;
             gridContainer.innerHTML = `
                 <div class="animate-pulse bg-gray-200 h-28 rounded-lg"></div>
                 <div class="animate-pulse bg-gray-200 h-28 rounded-lg"></div>
@@ -150,7 +157,7 @@
             `;
 
             try {
-                // 1. 渲染主系统包 (routeros-xx-arm64.npk)
+                // [渲染主包]
                 const mainArch = 'arm64'; 
                 const mainPackageUrl = `${BASE_URL}/${version}/routeros-${version}-${mainArch}.npk`;
                 mainContainer.innerHTML = `
@@ -168,12 +175,25 @@
                     </div>
                 `;
 
-                // 2. 获取并解析对应版本的 packages.csv
+                // [获取并渲染 CHANGELOG]
+                try {
+                    const clogRes = await fetch(`${BASE_URL}/${version}/CHANGELOG?t=${new Date().getTime()}`);
+                    if (clogRes.ok) {
+                        const clogText = await clogRes.text();
+                        // 如果 Changelog 获取到了，直接作为纯文本填入
+                        changelogContainer.textContent = clogText || '当前版本暂无详细更新说明。';
+                    } else {
+                        changelogContainer.innerHTML = '<span class="text-gray-400">该版本服务器未提供 CHANGELOG 文件。</span>';
+                    }
+                } catch(e) {
+                    changelogContainer.innerHTML = '<span class="text-red-400">拉取更新日志失败。</span>';
+                }
+
+                // [获取并渲染扩展包 csv]
                 const csvRes = await fetch(`${BASE_URL}/${version}/packages.csv?t=${new Date().getTime()}`);
-                if (!csvRes.ok) throw new Error(`无法获取该版本的 packages.csv`);
+                if (!csvRes.ok) throw new Error(`无法获取 packages.csv`);
                 const csvText = await csvRes.text();
 
-                // 3. 解析并拼装 HTML
                 const lines = csvText.split('\n');
                 let htmlContent = '';
 
@@ -188,7 +208,7 @@
                         const fileSize = formatBytes(parseInt(size));
 
                         htmlContent += `
-                            <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-col justify-between hover-card">
+                            <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-col justify-between hover-card shadow-sm">
                                 <div class="flex items-start mb-3">
                                     <i class="fa-solid fa-box-open text-2xl text-indigo-400 mr-3 mt-1"></i>
                                     <div class="overflow-hidden">
