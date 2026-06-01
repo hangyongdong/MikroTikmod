@@ -309,15 +309,38 @@ jobs:
           ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
           
           echo ">>> 正在通过 Rsync 将固件推送到 VPS..."
+          # 1. 同步当前编译的版本文件夹
           rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
           
+          # 2. 如果生成了 NEWEST 文件，同步到网站根目录
           if [ -f "./vps_upload/NEWESTa7.${CHANNEL}" ]; then
               rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/NEWESTa7.${CHANNEL} $SSH_USER@$SSH_HOST:$WEB_DIR/
-              echo ">>> NEWESTa7.${CHANNEL} 已同步，当前设为了最新版本！"
-          else
-              echo ">>> 本次发布非最新版，已安全跳过 NEWESTa7 文件的覆盖。"
+              echo ">>> NEWESTa7.${CHANNEL} 已同步！"
           fi
-          echo ">>> VPS 部署任务完成！"
+
+          # =================================================================
+          # 🌟 【新增】自动检测 VPS 历史版本，生成并推送 versions.json 索引文件
+          # =================================================================
+          echo ">>> 正在配置 SSH 私钥并检测 VPS 上的历史版本目录..."
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
+
+          # a. 远程读取已有的版本文件夹名称 (过滤出 7. 开头的文件夹)
+          REMOTE_DIRS=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd $WEB_DIR && find . -maxdepth 1 -type d -name '7.*' | sed 's|./||'" || echo "")
+          
+          # b. 将 VPS 已有的版本和本次编译的版本合并，并去重、从新到老排序 (sort -uV -r)
+          ALL_VERSIONS=$(echo -e "${REMOTE_DIRS}\n${VERSION}" | grep -E '^7\.' | sort -uV -r)
+          
+          # c. 转换为标准的 JSON 数组格式并写入本地文件
+          echo "$ALL_VERSIONS" | jq -R . | jq -s . > ./versions.json
+          echo ">>> 成功生成版本索引: $(cat ./versions.json)"
+          
+          # d. 同步 versions.json 和 index.html 到网站根目录
+          rsync -avz --progress -e "ssh -p $SSH_PORT" ./versions.json ./index.html $SSH_USER@$SSH_HOST:$WEB_DIR/
+          
+          echo ">>> VPS 部署任务与索引更新完成！"
 
       - name: 清理临时文件 (准备 Netinstall)
         run: |
