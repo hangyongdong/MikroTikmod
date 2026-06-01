@@ -237,159 +237,6 @@ jobs:
           echo "9. 获取 CHANGELOG..."
           curl -sL "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/${VERSION}/CHANGELOG" > changelog.txt
 
-      - name: 生成配置文件并发布到 VPS
-        if: ${{ matrix.build.publish_to_vps == true }}
-        env:
-          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
-          SSH_PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
-          SSH_USER: ${{ secrets.VPS_SSH_USER }}
-          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          WEB_DIR: ${{ secrets.VPS_WEB_DIR }}
-        run: |
-          echo ">>> 准备 VPS 部署环境..."
-          mkdir -p ./vps_upload/${VERSION}
-          
-          cp ./all_packages-${ARCH}/*.npk ./vps_upload/${VERSION}/
-          cp changelog.txt ./vps_upload/${VERSION}/CHANGELOG
-          cp routeros-${VERSION}-${ARCH}-patch.npk ./vps_upload/${VERSION}/routeros-${VERSION}-${ARCH}.npk
-          
-          cd ./vps_upload/${VERSION}
-          rm -f wifi-qcom-${VERSION}-${ARCH}-R.npk
-          if [ -f "wifi-qcom-${VERSION}-${ARCH}-X.npk" ]; then
-              mv wifi-qcom-${VERSION}-${ARCH}-X.npk wifi-qcom-${VERSION}-${ARCH}.npk
-              echo ">>> 已将 wifi-qcom X 版本格式化为标准名称。"
-          fi
-          
-          echo ">>> 正在生成 packages.csv..."
-          echo "arch,name,size" > packages.csv
-          for file in *.npk; do
-              base=$(basename "$file" .npk)
-              [[ "$base" == routeros-* ]] && continue
-              name="${base%%-${VERSION}-*}"
-              arch="${base##*-${VERSION}-}"
-              if [[ "$name" != "$base" && "$arch" != "$base" ]]; then
-                  size=$(stat -c%s "$file")
-                  echo "$arch,$name,$size" >> packages.csv
-              fi
-          done
-          cd ../../
-          
-          # =========================================================
-          # 🌟 [关键改动]：提前配置 SSH，彻底弃用 curl 外网请求
-          # =========================================================
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
-
-          # 1. 动态判断是否需要更新 NEWEST 文件 (通过 SSH 内网直连读取，彻底无视 CDN 拦截)
-          echo ">>> 正在通过 SSH 对比 VPS 硬盘上的历史版本号..."
-          REMOTE_NEWEST=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cat $WEB_DIR/NEWESTa7.${CHANNEL} 2>/dev/null" || echo "")
-          REMOTE_VERSION=$(echo "$REMOTE_NEWEST" | awk '{print $1}')
-          
-          UPDATE_NEWEST=false
-          if [ -z "$REMOTE_VERSION" ]; then
-              echo ">>> VPS 上未获取到最新版本号，将创建 NEWEST 文件。"
-              UPDATE_NEWEST=true
-          elif [ "$VERSION" == "$REMOTE_VERSION" ]; then
-              echo ">>> 当前编译版本 ($VERSION) 与 VPS 版本 ($REMOTE_VERSION) 相同，跳过更新。"
-          else
-              NORM_REMOTE=$(echo "$REMOTE_VERSION" | sed -E 's/(beta|rc|alpha)/~\1/g')
-              NORM_LOCAL=$(echo "$VERSION" | sed -E 's/(beta|rc|alpha)/~\1/g')
-              
-              if dpkg --compare-versions "$NORM_LOCAL" gt "$NORM_REMOTE"; then
-                  echo ">>> 编译版本 ($VERSION) 大于 线上版本 ($REMOTE_VERSION)，将更新 NEWEST 文件。"
-                  UPDATE_NEWEST=true
-              else
-                  echo ">>> 编译版本 ($VERSION) 小于 线上版本 ($REMOTE_VERSION)，拒绝降级 NEWEST 文件！"
-              fi
-          fi
-
-          if [ "$UPDATE_NEWEST" == "true" ]; then
-              echo ">>> 正在生成最新版本声明文件 (NEWESTa7.${CHANNEL})..."
-              BUILD_TIME=$(date +%s)
-              echo "${VERSION} ${BUILD_TIME}" > ./vps_upload/NEWESTa7.${CHANNEL}
-          fi
-          
-          # =========================================================
-          # 🌟 获取并更新多频道数据库 (同样通过 SCP 内网传输)
-          # =========================================================
-          echo ">>> 正在拉取 VPS 上已有的版本数据库..."
-          # 将远端的 versions.json 直接安全拷回本地
-          scp -P $SSH_PORT $SSH_USER@$SSH_HOST:$WEB_DIR/versions.json ./old_versions.json 2>/dev/null || echo "{}" > ./old_versions.json
-          
-          export REMOTE_DIRS=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd $WEB_DIR && find . -maxdepth 1 -type d -name '7.*' | sed 's|./||'" || echo "")
-          
-          cat << 'EOF' > update_json.py
-          import json, subprocess, re, sys, os
-
-          version_to_add = sys.argv[1]
-          channel_to_add = sys.argv[2]
-
-          db = {"stable": [], "long-term": [], "testing": [], "development": []}
-          
-          # 从刚下载的本地文件读取旧数据 (不再走 HTTP 网络请求)
-          try:
-              with open('./old_versions.json', 'r') as f:
-                  data = json.load(f)
-              if isinstance(data, dict):
-                  for k in db.keys(): db[k] = data.get(k, [])
-              elif isinstance(data, list):
-                  for v in data:
-                      if "rc" in v: db["testing"].append(v)
-                      elif "beta" in v or "alpha" in v: db["development"].append(v)
-                      elif v in ["7.20.8", "7.21.4"]: db["long-term"].append(v)
-                      else: db["stable"].append(v)
-          except Exception:
-              pass
-
-          # 补录漏网之鱼
-          remote_dirs = os.environ.get("REMOTE_DIRS", "").split()
-          for v in remote_dirs:
-              v = v.strip()
-              if not v: continue
-              if not any(v in db[c] for c in db.keys()):
-                  if "rc" in v: db["testing"].append(v)
-                  elif "beta" in v or "alpha" in v: db["development"].append(v)
-                  elif v in ["7.20.8", "7.21.4"]: db["long-term"].append(v)
-                  else: db["stable"].append(v)
-
-          # 处理当前版本
-          for k in db.keys():
-              if version_to_add in db[k]: db[k].remove(version_to_add)
-          db[channel_to_add].append(version_to_add)
-
-          # 倒序排列
-          def sort_versions(v_list):
-              if not v_list: return []
-              v_list = list(set(v_list))
-              norm_map = {re.sub(r'(beta|rc|alpha)', r'~\1', v): v for v in v_list}
-              p = subprocess.run(['sort', '-V', '-r'], input='\n'.join(norm_map.keys()), text=True, capture_output=True)
-              return [norm_map[n] for n in p.stdout.strip().split('\n') if n in norm_map]
-
-          for k in db.keys():
-              db[k] = sort_versions(db[k])
-
-          with open('./versions.json', 'w') as f:
-              json.dump(db, f, indent=2)
-          EOF
-
-          python3 update_json.py "${VERSION}" "${CHANNEL}"
-
-          # =========================================================
-          # 🌟 执行推送
-          # =========================================================
-          echo ">>> 正在通过 Rsync 将固件推送到 VPS..."
-          rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
-          
-          if [ -f "./vps_upload/NEWESTa7.${CHANNEL}" ]; then
-              rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/NEWESTa7.${CHANNEL} $SSH_USER@$SSH_HOST:$WEB_DIR/
-              echo ">>> NEWESTa7.${CHANNEL} 已同步，当前设为了最新版本！"
-          fi
-          
-          rsync -avz --progress -e "ssh -p $SSH_PORT" ./versions.json ./index.html $SSH_USER@$SSH_HOST:$WEB_DIR/
-          echo ">>> VPS 部署任务与索引更新完成！"
-
       - name: 清理临时文件 (准备 Netinstall)
         run: |
           sudo rm -rf ./all_packages-${ARCH}
@@ -409,6 +256,140 @@ jobs:
           sudo -E python3 patch.py netinstall netinstall.exe
           sudo zip -q netinstall-${VERSION}.zip ./netinstall.exe
           sudo rm -f ./netinstall.exe ./netinstall.zip 
+
+      - name: 生成配置文件并发布到 VPS
+        if: ${{ matrix.build.publish_to_vps == true }}
+        env:
+          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          SSH_PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
+          SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          WEB_DIR: ${{ secrets.VPS_WEB_DIR }}
+        run: |
+          echo ">>> 准备 VPS 部署环境..."
+          # 创建主版本目录和额外工具目录
+          mkdir -p ./vps_upload/${VERSION}
+          mkdir -p ./vps_upload/extra/${VERSION}
+          
+          # 拷贝常规更新包
+          cp ./all_packages-${ARCH}/*.npk ./vps_upload/${VERSION}/
+          cp changelog.txt ./vps_upload/${VERSION}/CHANGELOG
+          cp routeros-${VERSION}-${ARCH}-patch.npk ./vps_upload/${VERSION}/routeros-${VERSION}-${ARCH}.npk
+          
+          # 拷贝 Netinstall 工具到 extra 目录
+          if [ -f "netinstall-${VERSION}.zip" ]; then
+              cp netinstall-${VERSION}.zip ./vps_upload/extra/${VERSION}/
+          fi
+          
+          cd ./vps_upload/${VERSION}
+          
+          # ==========================================
+          # 🌟 [核心改动] 将 R 版移至 extra 目录，处理 X 版
+          # ==========================================
+          if [ -f "wifi-qcom-${VERSION}-${ARCH}-R.npk" ]; then
+              mv wifi-qcom-${VERSION}-${ARCH}-R.npk ../../extra/${VERSION}/
+              echo ">>> 已将 wifi-qcom R 版本安全隔离至 extra 目录。"
+          fi
+          
+          if [ -f "wifi-qcom-${VERSION}-${ARCH}-X.npk" ]; then
+              mv wifi-qcom-${VERSION}-${ARCH}-X.npk wifi-qcom-${VERSION}-${ARCH}.npk
+              echo ">>> 已将 wifi-qcom X 版本格式化为标准名称。"
+          fi
+          
+          echo ">>> 正在生成 packages.csv..."
+          echo "arch,name,size" > packages.csv
+          for file in *.npk; do
+              base=$(basename "$file" .npk)
+              [[ "$base" == routeros-* ]] && continue
+              name="${base%%-${VERSION}-*}"
+              arch="${base##*-${VERSION}-}"
+              if [[ "$name" != "$base" && "$arch" != "$base" ]]; then
+                  size=$(stat -c%s "$file")
+                  echo "$arch,$name,$size" >> packages.csv
+              fi
+          done
+          cd ../../
+          
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
+
+          echo ">>> 正在通过 SSH 对比 VPS 硬盘上的历史版本号..."
+          REMOTE_NEWEST=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cat $WEB_DIR/NEWESTa7.${CHANNEL} 2>/dev/null" || echo "")
+          REMOTE_VERSION=$(echo "$REMOTE_NEWEST" | awk '{print $1}')
+          
+          UPDATE_NEWEST=false
+          if [ -z "$REMOTE_VERSION" ]; then
+              UPDATE_NEWEST=true
+          elif [ "$VERSION" == "$REMOTE_VERSION" ]; then
+              echo ">>> 版本相同，跳过 NEWEST 更新。"
+          else
+              NORM_REMOTE=$(echo "$REMOTE_VERSION" | sed -E 's/(beta|rc|alpha)/~\1/g')
+              NORM_LOCAL=$(echo "$VERSION" | sed -E 's/(beta|rc|alpha)/~\1/g')
+              if dpkg --compare-versions "$NORM_LOCAL" gt "$NORM_REMOTE"; then
+                  UPDATE_NEWEST=true
+              fi
+          fi
+
+          if [ "$UPDATE_NEWEST" == "true" ]; then
+              BUILD_TIME=$(date +%s)
+              echo "${VERSION} ${BUILD_TIME}" > ./vps_upload/NEWESTa7.${CHANNEL}
+          fi
+          
+          # 更新多频道数据库 versions.json
+          scp -P $SSH_PORT $SSH_USER@$SSH_HOST:$WEB_DIR/versions.json ./old_versions.json 2>/dev/null || echo "{}" > ./old_versions.json
+          export REMOTE_DIRS=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd $WEB_DIR && find . -maxdepth 1 -type d -name '7.*' | sed 's|./||'" || echo "")
+          
+          cat << 'EOF' > update_json.py
+          import json, subprocess, re, sys, os
+          version_to_add = sys.argv[1]
+          channel_to_add = sys.argv[2]
+          db = {"stable": [], "long-term": [], "testing": [], "development": []}
+          try:
+              with open('./old_versions.json', 'r') as f:
+                  data = json.load(f)
+              if isinstance(data, dict):
+                  for k in db.keys(): db[k] = data.get(k, [])
+          except Exception: pass
+          remote_dirs = os.environ.get("REMOTE_DIRS", "").split()
+          for v in remote_dirs:
+              v = v.strip()
+              if not v: continue
+              if not any(v in db[c] for c in db.keys()):
+                  if "rc" in v: db["testing"].append(v)
+                  elif "beta" in v or "alpha" in v: db["development"].append(v)
+                  elif v in ["7.20.8", "7.21.4"]: db["long-term"].append(v)
+                  else: db["stable"].append(v)
+          for k in db.keys():
+              if version_to_add in db[k]: db[k].remove(version_to_add)
+          db[channel_to_add].append(version_to_add)
+
+          def sort_versions(v_list):
+              if not v_list: return []
+              v_list = list(set(v_list))
+              norm_map = {re.sub(r'(beta|rc|alpha)', r'~\1', v): v for v in v_list}
+              p = subprocess.run(['sort', '-V', '-r'], input='\n'.join(norm_map.keys()), text=True, capture_output=True)
+              return [norm_map[n] for n in p.stdout.strip().split('\n') if n in norm_map]
+
+          for k in db.keys(): db[k] = sort_versions(db[k])
+          with open('./versions.json', 'w') as f: json.dump(db, f, indent=2)
+          EOF
+
+          python3 update_json.py "${VERSION}" "${CHANNEL}"
+
+          echo ">>> 正在通过 Rsync 将固件推送到 VPS..."
+          # 1. 推送主版本包
+          rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
+          
+          # 2. 🌟 推送额外工具包 (extra 文件夹)
+          rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/extra $SSH_USER@$SSH_HOST:$WEB_DIR/
+          
+          if [ -f "./vps_upload/NEWESTa7.${CHANNEL}" ]; then
+              rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/NEWESTa7.${CHANNEL} $SSH_USER@$SSH_HOST:$WEB_DIR/
+          fi
+          
+          rsync -avz --progress -e "ssh -p $SSH_PORT" ./versions.json ./index.html $SSH_USER@$SSH_HOST:$WEB_DIR/
 
       - name: 自动发布到 GitHub Release
         uses: softprops/action-gh-release@v2
