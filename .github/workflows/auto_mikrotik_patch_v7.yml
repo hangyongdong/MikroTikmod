@@ -318,28 +318,92 @@ jobs:
               echo ">>> NEWESTa7.${CHANNEL} 已同步！"
           fi
 
-          # =================================================================
-          # 🌟 【新增】自动检测 VPS 历史版本，生成并推送 versions.json 索引文件
-          # =================================================================
-          echo ">>> 正在配置 SSH 私钥并检测 VPS 上的历史版本目录..."
+          # 6. 配置 SSH 私钥
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
+          
+          echo ">>> 正在通过 Rsync 将固件推送到 VPS..."
+          rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
+          
+          if [ -f "./vps_upload/NEWESTa7.${CHANNEL}" ]; then
+              rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/NEWESTa7.${CHANNEL} $SSH_USER@$SSH_HOST:$WEB_DIR/
+              echo ">>> NEWESTa7.${CHANNEL} 已同步，当前设为了最新版本！"
+          fi
 
-          # a. 远程读取已有的版本文件夹名称 (过滤出 7. 开头的文件夹)
-          REMOTE_DIRS=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd $WEB_DIR && find . -maxdepth 1 -type d -name '7.*' | sed 's|./||'" || echo "")
+          # =================================================================
+          # 🌟 生成多频道版本的 versions.json 数据库 (支持旧版自动分类迁移)
+          # =================================================================
+          echo ">>> 正在更新多频道版本数据库 (versions.json)..."
           
-          # b. 将 VPS 已有的版本和本次编译的版本合并，并去重、从新到老排序 (sort -uV -r)
-          ALL_VERSIONS=$(echo -e "${REMOTE_DIRS}\n${VERSION}" | grep -E '^7\.' | sort -uV -r)
+          # 获取 VPS 上已存在的所有版本目录，防止有漏网之鱼
+          export REMOTE_DIRS=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd $WEB_DIR && find . -maxdepth 1 -type d -name '7.*' | sed 's|./||'" || echo "")
           
-          # c. 转换为标准的 JSON 数组格式并写入本地文件
-          echo "$ALL_VERSIONS" | jq -R . | jq -s . > ./versions.json
-          echo ">>> 成功生成版本索引: $(cat ./versions.json)"
+          cat << 'EOF' > update_json.py
+          import json, urllib.request, subprocess, re, sys, os
+
+          version_to_add = sys.argv[1]
+          channel_to_add = sys.argv[2]
+          remote_url = sys.argv[3]
+
+          db = {"stable": [], "long-term": [], "testing": [], "development": []}
           
-          # d. 同步 versions.json 和 index.html 到网站根目录
+          # 1. 尝试从线上获取现有的 JSON 数据库
+          try:
+              req = urllib.request.Request(f"{remote_url}/versions.json", headers={'User-Agent': 'Mozilla/5.0'})
+              data = json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))
+              if isinstance(data, dict):
+                  for k in db.keys(): db[k] = data.get(k, [])
+              elif isinstance(data, list):
+                  # 旧版平铺数组自动迁移分类
+                  for v in data:
+                      if "rc" in v: db["testing"].append(v)
+                      elif "beta" in v or "alpha" in v: db["development"].append(v)
+                      elif v in ["7.20.8", "7.21.4"]: db["long-term"].append(v)
+                      else: db["stable"].append(v)
+          except Exception as e:
+              pass
+
+          # 2. 将远端实际存在的目录（漏网之鱼）按硬性规则归入数据库
+          remote_dirs = os.environ.get("REMOTE_DIRS", "").split()
+          for v in remote_dirs:
+              v = v.strip()
+              if not v: continue
+              # 如果这个版本不在任何频道里，就应用硬性规则
+              if not any(v in db[c] for c in db.keys()):
+                  if "rc" in v: db["testing"].append(v)
+                  elif "beta" in v or "alpha" in v: db["development"].append(v)
+                  elif v in ["7.20.8", "7.21.4"]: db["long-term"].append(v)
+                  else: db["stable"].append(v)
+
+          # 3. 重点：处理当前正在编译的版本！它必须绝对服从 Action 传来的 Channel！
+          # 先把它从所有频道里删掉（去重/纠错）
+          for k in db.keys():
+              if version_to_add in db[k]: db[k].remove(version_to_add)
+          # 将它强制加入指定的 channel
+          db[channel_to_add].append(version_to_add)
+
+          # 4. 对四个频道分别进行严谨的语义化版本倒序排列 (兼容 Debian dpkg 规则)
+          def sort_versions(v_list):
+              if not v_list: return []
+              v_list = list(set(v_list))
+              norm_map = {re.sub(r'(beta|rc|alpha)', r'~\1', v): v for v in v_list}
+              p = subprocess.run(['sort', '-V', '-r'], input='\n'.join(norm_map.keys()), text=True, capture_output=True)
+              return [norm_map[n] for n in p.stdout.strip().split('\n') if n in norm_map]
+
+          for k in db.keys():
+              db[k] = sort_versions(db[k])
+
+          # 保存输出
+          with open('./versions.json', 'w') as f:
+              json.dump(db, f, indent=2)
+          EOF
+
+          python3 update_json.py "${VERSION}" "${CHANNEL}" "https://${CUSTOM_UPGRADE_URL}"
+          
+          # 增量推送 JSON 文件与前端网页
           rsync -avz --progress -e "ssh -p $SSH_PORT" ./versions.json ./index.html $SSH_USER@$SSH_HOST:$WEB_DIR/
-          
           echo ">>> VPS 部署任务与索引更新完成！"
 
       - name: 清理临时文件 (准备 Netinstall)
