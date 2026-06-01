@@ -237,11 +237,6 @@ jobs:
           echo "9. 获取 CHANGELOG..."
           curl -sL "https://${{ secrets.MIKRO_DOWNLOAD_URL }}/routeros/${VERSION}/CHANGELOG" > changelog.txt
 
-      - name: 清理临时文件 (准备 Netinstall)
-        run: |
-          sudo rm -rf ./all_packages-${ARCH}
-          sudo rm all_packages-${ARCH}-${VERSION}.zip
-
       - name: 下载并 Patch Netinstall 工具
         run: |
           echo "10. 下载官方 Netinstall 工具..."
@@ -390,6 +385,11 @@ jobs:
           fi
           
           rsync -avz --progress -e "ssh -p $SSH_PORT" ./versions.json ./index.html $SSH_USER@$SSH_HOST:$WEB_DIR/
+
+      - name: 清理临时文件
+        run: |
+          sudo rm -rf ./all_packages-${ARCH}
+          sudo rm all_packages-${ARCH}-${VERSION}.zip
 
       - name: 自动发布到 GitHub Release
         uses: softprops/action-gh-release@v2
