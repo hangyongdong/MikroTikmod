@@ -94,7 +94,16 @@
             if (!bytes || bytes === 0) return '未知';
             return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
         }
-
+        // 🌟 新增：探测文件是否存在的智能函数
+        async function checkFileExists(url) {
+            try {
+                // 使用 HEAD 方法，只获取响应头，不消耗下载流量
+                const response = await fetch(url, { method: 'HEAD', cache: 'no-cache' });
+                return response.ok;
+            } catch (e) {
+                return false;
+            }
+        }
         async function initPage() {
             const channels = ['stable', 'long-term', 'testing', 'development'];
             
@@ -207,12 +216,23 @@
                         </a>
                     </div>
                 `;
-                // 🌟 新增：[渲染额外工具]
+                // 🌟 智能探测并渲染额外工具
                 const extraContainer = document.getElementById('extra-package-container');
+                extraContainer.innerHTML = `<div class="animate-pulse bg-gray-200 h-20 rounded-lg"></div>`; // 探测时的骨架屏
+
                 const netinstallUrl = `${BASE_URL}/extra/${version}/netinstall-${version}.zip`;
                 const wifiRUrl = `${BASE_URL}/extra/${version}/wifi-qcom-${version}-${mainArch}-R.npk`;
-                extraContainer.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                // 并发探测两个文件是否存在
+                const [hasNetinstall, hasWifiR] = await Promise.all([
+                    checkFileExists(netinstallUrl),
+                    checkFileExists(wifiRUrl)
+                ]);
+
+                let extraHtml = '';
+
+                if (hasNetinstall) {
+                    extraHtml += `
                         <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-col justify-between hover-card shadow-sm">
                             <div class="flex items-start mb-3">
                                 <i class="fa-solid fa-tools text-2xl text-orange-500 mr-3 mt-1"></i>
@@ -224,7 +244,11 @@
                             <a href="${netinstallUrl}" class="mt-2 text-center bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-600 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center">
                                 <i class="fa-solid fa-download mr-2"></i> 下载工具
                             </a>
-                        </div>
+                        </div>`;
+                }
+
+                if (hasWifiR) {
+                    extraHtml += `
                         <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-col justify-between hover-card shadow-sm">
                             <div class="flex items-start mb-3">
                                 <i class="fa-solid fa-wifi text-2xl text-teal-500 mr-3 mt-1"></i>
@@ -236,9 +260,15 @@
                             <a href="${wifiRUrl}" class="mt-2 text-center bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-600 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center">
                                 <i class="fa-solid fa-download mr-2"></i> 下载驱动
                             </a>
-                        </div>
-                    </div>
-                `;
+                        </div>`;
+                }
+
+                // 最终渲染判断
+                if (extraHtml === '') {
+                    extraContainer.innerHTML = `<p class="text-gray-500 p-4 border border-dashed rounded-lg text-center">该版本未提供额外的工具或特殊驱动。</p>`;
+                } else {
+                    extraContainer.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">${extraHtml}</div>`;
+                }
                 fetch(`${BASE_URL}/${version}/CHANGELOG?t=${new Date().getTime()}`)
                     .then(res => res.ok ? res.text() : '未提供更新日志')
                     .then(text => clogContainer.textContent = text || '当前版本无详细说明')
