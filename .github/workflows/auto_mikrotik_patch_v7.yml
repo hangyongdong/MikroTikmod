@@ -274,26 +274,34 @@ jobs:
           done
           cd ../../
           
-          echo ">>> 正在对比远程与当前版本号..."
-          REMOTE_NEWEST=$(curl -sL "https://${CUSTOM_UPGRADE_URL}/NEWESTa7.${CHANNEL}" || echo "")
+          # =========================================================
+          # 🌟 [关键改动]：提前配置 SSH，彻底弃用 curl 外网请求
+          # =========================================================
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
+
+          # 1. 动态判断是否需要更新 NEWEST 文件 (通过 SSH 内网直连读取，彻底无视 CDN 拦截)
+          echo ">>> 正在通过 SSH 对比 VPS 硬盘上的历史版本号..."
+          REMOTE_NEWEST=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cat $WEB_DIR/NEWESTa7.${CHANNEL} 2>/dev/null" || echo "")
           REMOTE_VERSION=$(echo "$REMOTE_NEWEST" | awk '{print $1}')
           
           UPDATE_NEWEST=false
           if [ -z "$REMOTE_VERSION" ]; then
-              echo ">>> 未获取到线上最新版本号，将创建 NEWEST 文件。"
+              echo ">>> VPS 上未获取到最新版本号，将创建 NEWEST 文件。"
               UPDATE_NEWEST=true
           elif [ "$VERSION" == "$REMOTE_VERSION" ]; then
-              echo ">>> 当前编译版本 ($VERSION) 与线上版本 ($REMOTE_VERSION) 相同，跳过更新 NEWEST 文件。"
+              echo ">>> 当前编译版本 ($VERSION) 与 VPS 版本 ($REMOTE_VERSION) 相同，跳过更新。"
           else
-              # 对比发布时的防误覆盖保护，同样使用 dpkg --compare-versions
               NORM_REMOTE=$(echo "$REMOTE_VERSION" | sed -E 's/(beta|rc|alpha)/~\1/g')
               NORM_LOCAL=$(echo "$VERSION" | sed -E 's/(beta|rc|alpha)/~\1/g')
               
               if dpkg --compare-versions "$NORM_LOCAL" gt "$NORM_REMOTE"; then
-                  echo ">>> 当前编译版本 ($VERSION) 大于 线上版本 ($REMOTE_VERSION)，将更新 NEWEST 文件。"
+                  echo ">>> 编译版本 ($VERSION) 大于 线上版本 ($REMOTE_VERSION)，将更新 NEWEST 文件。"
                   UPDATE_NEWEST=true
               else
-                  echo ">>> 当前编译版本 ($VERSION) 小于或等于 线上版本 ($REMOTE_VERSION)，跳过更新 NEWEST 文件。"
+                  echo ">>> 编译版本 ($VERSION) 小于 线上版本 ($REMOTE_VERSION)，拒绝降级 NEWEST 文件！"
               fi
           fi
 
@@ -303,88 +311,55 @@ jobs:
               echo "${VERSION} ${BUILD_TIME}" > ./vps_upload/NEWESTa7.${CHANNEL}
           fi
           
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
+          # =========================================================
+          # 🌟 获取并更新多频道数据库 (同样通过 SCP 内网传输)
+          # =========================================================
+          echo ">>> 正在拉取 VPS 上已有的版本数据库..."
+          # 将远端的 versions.json 直接安全拷回本地
+          scp -P $SSH_PORT $SSH_USER@$SSH_HOST:$WEB_DIR/versions.json ./old_versions.json 2>/dev/null || echo "{}" > ./old_versions.json
           
-          echo ">>> 正在通过 Rsync 将固件推送到 VPS..."
-          # 1. 同步当前编译的版本文件夹
-          rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
-          
-          # 2. 如果生成了 NEWEST 文件，同步到网站根目录
-          if [ -f "./vps_upload/NEWESTa7.${CHANNEL}" ]; then
-              rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/NEWESTa7.${CHANNEL} $SSH_USER@$SSH_HOST:$WEB_DIR/
-              echo ">>> NEWESTa7.${CHANNEL} 已同步！"
-          fi
-
-          # 6. 配置 SSH 私钥
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
-          
-          echo ">>> 正在通过 Rsync 将固件推送到 VPS..."
-          rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
-          
-          if [ -f "./vps_upload/NEWESTa7.${CHANNEL}" ]; then
-              rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/NEWESTa7.${CHANNEL} $SSH_USER@$SSH_HOST:$WEB_DIR/
-              echo ">>> NEWESTa7.${CHANNEL} 已同步，当前设为了最新版本！"
-          fi
-
-          # =================================================================
-          # 🌟 生成多频道版本的 versions.json 数据库 (支持旧版自动分类迁移)
-          # =================================================================
-          echo ">>> 正在更新多频道版本数据库 (versions.json)..."
-          
-          # 获取 VPS 上已存在的所有版本目录，防止有漏网之鱼
           export REMOTE_DIRS=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd $WEB_DIR && find . -maxdepth 1 -type d -name '7.*' | sed 's|./||'" || echo "")
           
           cat << 'EOF' > update_json.py
-          import json, urllib.request, subprocess, re, sys, os
+          import json, subprocess, re, sys, os
 
           version_to_add = sys.argv[1]
           channel_to_add = sys.argv[2]
-          remote_url = sys.argv[3]
 
           db = {"stable": [], "long-term": [], "testing": [], "development": []}
           
-          # 1. 尝试从线上获取现有的 JSON 数据库
+          # 从刚下载的本地文件读取旧数据 (不再走 HTTP 网络请求)
           try:
-              req = urllib.request.Request(f"{remote_url}/versions.json", headers={'User-Agent': 'Mozilla/5.0'})
-              data = json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))
+              with open('./old_versions.json', 'r') as f:
+                  data = json.load(f)
               if isinstance(data, dict):
                   for k in db.keys(): db[k] = data.get(k, [])
               elif isinstance(data, list):
-                  # 旧版平铺数组自动迁移分类
                   for v in data:
                       if "rc" in v: db["testing"].append(v)
                       elif "beta" in v or "alpha" in v: db["development"].append(v)
                       elif v in ["7.20.8", "7.21.4"]: db["long-term"].append(v)
                       else: db["stable"].append(v)
-          except Exception as e:
+          except Exception:
               pass
 
-          # 2. 将远端实际存在的目录（漏网之鱼）按硬性规则归入数据库
+          # 补录漏网之鱼
           remote_dirs = os.environ.get("REMOTE_DIRS", "").split()
           for v in remote_dirs:
               v = v.strip()
               if not v: continue
-              # 如果这个版本不在任何频道里，就应用硬性规则
               if not any(v in db[c] for c in db.keys()):
                   if "rc" in v: db["testing"].append(v)
                   elif "beta" in v or "alpha" in v: db["development"].append(v)
                   elif v in ["7.20.8", "7.21.4"]: db["long-term"].append(v)
                   else: db["stable"].append(v)
 
-          # 3. 重点：处理当前正在编译的版本！它必须绝对服从 Action 传来的 Channel！
-          # 先把它从所有频道里删掉（去重/纠错）
+          # 处理当前版本
           for k in db.keys():
               if version_to_add in db[k]: db[k].remove(version_to_add)
-          # 将它强制加入指定的 channel
           db[channel_to_add].append(version_to_add)
 
-          # 4. 对四个频道分别进行严谨的语义化版本倒序排列 (兼容 Debian dpkg 规则)
+          # 倒序排列
           def sort_versions(v_list):
               if not v_list: return []
               v_list = list(set(v_list))
@@ -395,14 +370,23 @@ jobs:
           for k in db.keys():
               db[k] = sort_versions(db[k])
 
-          # 保存输出
           with open('./versions.json', 'w') as f:
               json.dump(db, f, indent=2)
           EOF
 
-          python3 update_json.py "${VERSION}" "${CHANNEL}" "https://${CUSTOM_UPGRADE_URL}"
+          python3 update_json.py "${VERSION}" "${CHANNEL}"
+
+          # =========================================================
+          # 🌟 执行推送
+          # =========================================================
+          echo ">>> 正在通过 Rsync 将固件推送到 VPS..."
+          rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
           
-          # 增量推送 JSON 文件与前端网页
+          if [ -f "./vps_upload/NEWESTa7.${CHANNEL}" ]; then
+              rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/NEWESTa7.${CHANNEL} $SSH_USER@$SSH_HOST:$WEB_DIR/
+              echo ">>> NEWESTa7.${CHANNEL} 已同步，当前设为了最新版本！"
+          fi
+          
           rsync -avz --progress -e "ssh -p $SSH_PORT" ./versions.json ./index.html $SSH_USER@$SSH_HOST:$WEB_DIR/
           echo ">>> VPS 部署任务与索引更新完成！"
 
