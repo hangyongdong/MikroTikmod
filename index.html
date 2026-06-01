@@ -63,7 +63,11 @@
 
         <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-blue-500">主系统包 (Main Package)</h2>
         <div id="main-package-container" class="mb-6"></div>
-
+        <!-- 额外工具与驱动下载 -->
+        <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-orange-500">额外工具与驱动 (Extra Tools)</h2>
+        <div id="extra-package-container" class="mb-6">
+            <!-- JS 动态渲染 -->
+        </div>
         <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-green-500">更新日志 (Changelog)</h2>
         <div class="mb-8 bg-gray-50 border border-gray-200 rounded-lg shadow-inner relative">
             <div id="changelog-container" class="p-4 h-48 overflow-y-auto custom-scrollbar text-sm text-gray-700 font-mono whitespace-pre-wrap leading-relaxed"></div>
@@ -203,7 +207,38 @@
                         </a>
                     </div>
                 `;
-
+                // 🌟 新增：[渲染额外工具]
+                const extraContainer = document.getElementById('extra-package-container');
+                const netinstallUrl = `${BASE_URL}/extra/${version}/netinstall-${version}.zip`;
+                const wifiRUrl = `${BASE_URL}/extra/${version}/wifi-qcom-${version}-${mainArch}-R.npk`;
+                extraContainer.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-col justify-between hover-card shadow-sm">
+                            <div class="flex items-start mb-3">
+                                <i class="fa-solid fa-tools text-2xl text-orange-500 mr-3 mt-1"></i>
+                                <div class="overflow-hidden">
+                                    <h3 class="font-bold text-gray-700 truncate">netinstall-${version}.zip</h3>
+                                    <p class="text-xs text-gray-400 mt-1">官方底层救砖工具 (已解密 Patch)</p>
+                                </div>
+                            </div>
+                            <a href="${netinstallUrl}" class="mt-2 text-center bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-600 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center">
+                                <i class="fa-solid fa-download mr-2"></i> 下载工具
+                            </a>
+                        </div>
+                        <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-col justify-between hover-card shadow-sm">
+                            <div class="flex items-start mb-3">
+                                <i class="fa-solid fa-wifi text-2xl text-teal-500 mr-3 mt-1"></i>
+                                <div class="overflow-hidden">
+                                    <h3 class="font-bold text-gray-700 truncate">wifi-qcom-${version}-${mainArch}-R.npk</h3>
+                                    <p class="text-xs text-gray-400 mt-1">特殊射频驱动 (R版 / 回退版本)</p>
+                                </div>
+                            </div>
+                            <a href="${wifiRUrl}" class="mt-2 text-center bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-600 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center">
+                                <i class="fa-solid fa-download mr-2"></i> 下载驱动
+                            </a>
+                        </div>
+                    </div>
+                `;
                 fetch(`${BASE_URL}/${version}/CHANGELOG?t=${new Date().getTime()}`)
                     .then(res => res.ok ? res.text() : '未提供更新日志')
                     .then(text => clogContainer.textContent = text || '当前版本无详细说明')
