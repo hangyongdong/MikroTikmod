@@ -282,7 +282,7 @@ jobs:
           # 🌟 [核心改动] 将 R 版移至 extra 目录，处理 X 版
           # ==========================================
           if [ -f "wifi-qcom-${VERSION}-${ARCH}-R.npk" ]; then
-              mv wifi-qcom-${VERSION}-${ARCH}-R.npk ../../extra/${VERSION}/
+              mv wifi-qcom-${VERSION}-${ARCH}-R.npk ../extra/${VERSION}/
               echo ">>> 已将 wifi-qcom R 版本安全隔离至 extra 目录。"
           fi
           
