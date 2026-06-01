@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RouterOS 固件分发中心</title>
+    <!-- 引入 Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .hover-card:hover { transform: translateY(-2px); transition: all 0.2s ease-in-out; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+
+    <!-- 顶部导航栏 -->
+    <nav class="bg-blue-600 text-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="text-xl font-bold tracking-wider flex items-center">
+                <i class="fa-solid fa-router mr-3 text-2xl"></i> RouterOS 固件分发中心
+            </div>
+            <div class="text-sm bg-blue-700 px-3 py-1 rounded-full border border-blue-500 shadow-inner">
+                <i class="fa-solid fa-server mr-1"></i> Tencent EdgeOne 全球加速
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容区 -->
+    <main class="flex-grow max-w-6xl mx-auto w-full px-4 py-8">
+        
+        <!-- 版本切换控制面板 -->
+        <div class="glass-panel rounded-xl shadow-sm border border-gray-200 p-6 mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-extrabold text-gray-900 mb-1">固件版本库</h1>
+                <p class="text-gray-500 text-sm"><i class="fa-regular fa-clock mr-1"></i> 选择不同版本无缝下载对应系统包及扩展包</p>
+            </div>
+            
+            <!-- 美观的下拉版本选择器 -->
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <label for="version-selector" class="text-gray-600 font-medium text-sm whitespace-nowrap">当前版本:</label>
+                <div class="relative w-full md:w-56">
+                    <select id="version-selector" class="block appearance-none w-full bg-white border border-gray-300 hover:border-gray-400 px-4 py-2.5 pr-10 rounded-lg shadow-sm leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700 font-bold cursor-pointer">
+                        <option>正在获取版本列表...</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主系统包下载 (单独高亮显示) -->
+        <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-blue-500">主系统包 (Main Package)</h2>
+        <div id="main-package-container" class="mb-8">
+            <!-- JS 动态渲染 -->
+        </div>
+
+        <!-- 扩展包列表 -->
+        <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-indigo-500">功能扩展包 (Extra Packages)</h2>
+        <div id="packages-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[150px]">
+            <!-- JS 动态渲染 -->
+        </div>
+
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-gray-800 text-gray-400 py-6 text-center text-sm mt-auto">
+        <p>© 2026 RouterOS Custom Mirror. Powered by Cloudflare R2.</p>
+    </footer>
+
+    <!-- 核心逻辑脚本 -->
+    <script>
+        const BASE_URL = '/routeros'; 
+        
+        // 格式化文件大小 (Bytes -> MB)
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return '未知大小';
+            const k = 1024;
+            const mb = bytes / (k * k);
+            return mb.toFixed(2) + ' MB';
+        }
+
+        // 初始化：拉取版本列表并填充下拉菜单
+        async function initPage() {
+            const selector = document.getElementById('version-selector');
+            try {
+                // 1. 尝试拉取自动生成的 versions.json
+                const res = await fetch(`${BASE_URL}/versions.json?t=${new Date().getTime()}`);
+                let versions = [];
+                if (res.ok) {
+                    versions = await res.json();
+                }
+
+                // 2. 拉取 NEWESTa7.stable 获取默认的“最新版本”
+                const newestRes = await fetch(`${BASE_URL}/NEWESTa7.stable?t=${new Date().getTime()}`);
+                let latestVersion = "";
+                if (newestRes.ok) {
+                    const newestText = await newestRes.text();
+                    latestVersion = newestText.split(' ')[0].trim();
+                }
+
+                // 兜底逻辑：如果 versions.json 获取失败，至少把最新的版本填进去
+                if (versions.length === 0 && latestVersion) {
+                    versions = [latestVersion];
+                }
+
+                if (versions.length === 0) {
+                    throw new Error("未能获取任何版本记录");
+                }
+
+                // 3. 填充下拉菜单
+                selector.innerHTML = '';
+                versions.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.innerText = `v${v}` + (v === latestVersion ? ' (Latest)' : '');
+                    if (v === latestVersion) opt.selected = true;
+                    selector.appendChild(opt);
+                });
+
+                // 4. 默认加载初始选中的版本数据
+                const defaultVersion = latestVersion || versions[0];
+                loadVersionData(defaultVersion);
+
+                // 5. 监听下拉菜单改变事件
+                selector.addEventListener('change', (e) => {
+                    loadVersionData(e.target.value);
+                });
+
+            } catch (error) {
+                console.error(error);
+                selector.innerHTML = '<option>版本列表加载失败</option>';
+                document.getElementById('packages-grid').innerHTML = `<p class="text-red-500 p-4">无法获取版本索引或网络异常。</p>`;
+            }
+        }
+
+        // 加载指定版本的固件及扩展包数据
+        async function loadVersionData(version) {
+            const mainContainer = document.getElementById('main-package-container');
+            const gridContainer = document.getElementById('packages-grid');
+
+            // 显示加载骨架
+            mainContainer.innerHTML = `<div class="animate-pulse bg-gray-200 h-20 rounded-lg"></div>`;
+            gridContainer.innerHTML = `
+                <div class="animate-pulse bg-gray-200 h-28 rounded-lg"></div>
+                <div class="animate-pulse bg-gray-200 h-28 rounded-lg"></div>
+                <div class="animate-pulse bg-gray-200 h-28 rounded-lg"></div>
+            `;
+
+            try {
+                // 1. 渲染主系统包 (routeros-xx-arm64.npk)
+                const mainArch = 'arm64'; 
+                const mainPackageUrl = `${BASE_URL}/${version}/routeros-${version}-${mainArch}.npk`;
+                mainContainer.innerHTML = `
+                    <div class="glass-panel rounded-lg border border-blue-200 p-4 flex justify-between items-center hover-card bg-blue-50/30">
+                        <div class="flex items-center">
+                            <i class="fa-solid fa-cube text-3xl text-blue-500 mr-4"></i>
+                            <div>
+                                <h3 class="font-bold text-gray-800 text-lg">routeros-${version}-${mainArch}.npk</h3>
+                                <p class="text-xs text-gray-500 mt-1">核心系统主包 | 架构: ${mainArch.toUpperCase()}</p>
+                            </div>
+                        </div>
+                        <a href="${mainPackageUrl}" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg shadow transition text-sm font-medium flex items-center">
+                            <i class="fa-solid fa-download mr-2"></i> 下载
+                        </a>
+                    </div>
+                `;
+
+                // 2. 获取并解析对应版本的 packages.csv
+                const csvRes = await fetch(`${BASE_URL}/${version}/packages.csv?t=${new Date().getTime()}`);
+                if (!csvRes.ok) throw new Error(`无法获取该版本的 packages.csv`);
+                const csvText = await csvRes.text();
+
+                // 3. 解析并拼装 HTML
+                const lines = csvText.split('\n');
+                let htmlContent = '';
+
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    
+                    const [arch, name, size] = line.split(',');
+                    if (arch && name && size && arch === 'arm64') {
+                        const fileName = `${name}-${version}-${arch}.npk`;
+                        const fileUrl = `${BASE_URL}/${version}/${fileName}`;
+                        const fileSize = formatBytes(parseInt(size));
+
+                        htmlContent += `
+                            <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-col justify-between hover-card">
+                                <div class="flex items-start mb-3">
+                                    <i class="fa-solid fa-box-open text-2xl text-indigo-400 mr-3 mt-1"></i>
+                                    <div class="overflow-hidden">
+                                        <h3 class="font-bold text-gray-700 truncate" title="${fileName}">${name}</h3>
+                                        <p class="text-xs text-gray-400 mt-1 uppercase font-mono">${arch} • ${fileSize}</p>
+                                    </div>
+                                </div>
+                                <a href="${fileUrl}" class="mt-2 text-center bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium transition flex justify-center items-center">
+                                    <i class="fa-solid fa-cloud-arrow-down mr-2"></i> 获取组件
+                                </a>
+                            </div>
+                        `;
+                    }
+                }
+                
+                gridContainer.innerHTML = htmlContent || `<p class="text-gray-500 p-4">该版本下暂无匹配架构的扩展包。</p>`;
+
+            } catch (error) {
+                console.error(error);
+                mainContainer.innerHTML = `<div class="text-red-500 p-4">主包数据加载失败。</div>`;
+                gridContainer.innerHTML = `<div class="text-red-500 p-4 col-span-3">无法读取该版本的 packages.csv 列表。</div>`;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>
