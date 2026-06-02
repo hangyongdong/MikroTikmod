@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RouterOS 固件分发中心</title>
+    <title>RouterOS 固件中心</title>
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -23,7 +23,7 @@
     <nav class="bg-blue-600 text-white shadow-lg">
         <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
             <div class="text-xl font-bold tracking-wider flex items-center">
-                <i class="fa-solid fa-router mr-3 text-2xl"></i> RouterOS 固件分发中心
+                <i class="fa-solid fa-router mr-3 text-2xl"></i> RouterOS 固件中心
             </div>
             <div class="text-sm bg-blue-700 px-3 py-1 rounded-full border border-blue-500 shadow-inner hidden sm:block">
                 <i class="fa-solid fa-server mr-1"></i> Tencent EdgeOne 全球加速
@@ -45,15 +45,15 @@
 
             <!-- 频道标签页导航 (Tabs) -->
             <div class="flex flex-wrap sm:flex-nowrap p-1 mb-6 bg-gray-100/80 rounded-xl border border-gray-200 shadow-inner gap-1">
-                <button onclick="switchTab('stable')" id="tab-stable" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-bold bg-white shadow-sm text-blue-600 border border-gray-200 transition-all">Stable</button>
-                <button onclick="switchTab('long-term')" id="tab-long-term" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 transition-all">Long-term</button>
+                <button onclick="switchTab('long-term')" id="tab-long-term" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 transition-all">Longterm</button>
+                <button onclick="switchTab('stable')" id="tab-stable" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-bold bg-white shadow-sm text-blue-600 border border-gray-200 transition-all">Stable</button>             
                 <button onclick="switchTab('testing')" id="tab-testing" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 transition-all">Testing</button>
                 <button onclick="switchTab('development')" id="tab-development" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 transition-all">Development</button>
             </div>
 
             <!-- 下拉版本选择器 -->
             <div class="flex items-center gap-3 w-full border-t border-gray-100 pt-5">
-                <label for="version-selector" class="text-gray-600 font-bold text-sm whitespace-nowrap">当前频道版本:</label>
+                <label for="version-selector" class="text-gray-600 font-bold text-sm whitespace-nowrap">固件版本 (Version):</label>
                 <div class="relative w-full md:w-64">
                     <select id="version-selector" class="block appearance-none w-full bg-white border border-gray-300 hover:border-gray-400 px-4 py-2 pr-10 rounded-lg shadow-sm leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700 font-bold cursor-pointer transition">
                         <option>正在获取版本列表...</option>
