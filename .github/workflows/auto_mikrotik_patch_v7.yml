@@ -292,30 +292,22 @@ jobs:
           WEB_DIR: ${{ secrets.VPS_WEB_DIR }}
         run: |
           echo ">>> 准备 VPS 部署环境..."
-          # 创建主版本目录和额外工具目录
           mkdir -p ./vps_upload/${VERSION}
           mkdir -p ./vps_upload/extra/${VERSION}
           
-          # 拷贝常规更新包
           cp ./all_packages-${ARCH}/*.npk ./vps_upload/${VERSION}/
           cp changelog.txt ./vps_upload/${VERSION}/CHANGELOG
           cp routeros-${VERSION}-${ARCH}-patch.npk ./vps_upload/${VERSION}/routeros-${VERSION}-${ARCH}.npk
           
-          # 拷贝 Netinstall 工具到 extra 目录
           if [ -f "netinstall-${VERSION}.zip" ]; then
               cp netinstall-${VERSION}.zip ./vps_upload/extra/${VERSION}/
           fi
           
           cd ./vps_upload/${VERSION}
-          
-          # ==========================================
-          # 🌟 [核心改动] 将 R 版移至 extra 目录，处理 X 版
-          # ==========================================
           if [ -f "wifi-qcom-${VERSION}-${ARCH}-R.npk" ]; then
               mv wifi-qcom-${VERSION}-${ARCH}-R.npk ../extra/${VERSION}/
               echo ">>> 已将 wifi-qcom R 版本安全隔离至 extra 目录。"
           fi
-          
           if [ -f "wifi-qcom-${VERSION}-${ARCH}-X.npk" ]; then
               mv wifi-qcom-${VERSION}-${ARCH}-X.npk wifi-qcom-${VERSION}-${ARCH}.npk
               echo ">>> 已将 wifi-qcom X 版本格式化为标准名称。"
@@ -362,7 +354,7 @@ jobs:
               echo "${VERSION} ${BUILD_TIME}" > ./vps_upload/NEWESTa7.${CHANNEL}
           fi
           
-          # 更新多频道数据库 versions.json
+          echo ">>> 正在更新多频道数据库并执行历史版本清理策略..."
           scp -P $SSH_PORT $SSH_USER@$SSH_HOST:$WEB_DIR/versions.json ./old_versions.json 2>/dev/null || echo "{}" > ./old_versions.json
           export REMOTE_DIRS=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd $WEB_DIR && find . -maxdepth 1 -type d -name '7.*' | sed 's|./||'" || echo "")
           
@@ -371,12 +363,14 @@ jobs:
           version_to_add = sys.argv[1]
           channel_to_add = sys.argv[2]
           db = {"stable": [], "long-term": [], "testing": [], "development": []}
+          
           try:
               with open('./old_versions.json', 'r') as f:
                   data = json.load(f)
               if isinstance(data, dict):
                   for k in db.keys(): db[k] = data.get(k, [])
           except Exception: pass
+          
           remote_dirs = os.environ.get("REMOTE_DIRS", "").split()
           for v in remote_dirs:
               v = v.strip()
@@ -386,6 +380,7 @@ jobs:
                   elif "beta" in v or "alpha" in v: db["development"].append(v)
                   elif v in ["7.20.8", "7.21.4"]: db["long-term"].append(v)
                   else: db["stable"].append(v)
+                  
           for k in db.keys():
               if version_to_add in db[k]: db[k].remove(version_to_add)
           db[channel_to_add].append(version_to_add)
@@ -398,16 +393,67 @@ jobs:
               return [norm_map[n] for n in p.stdout.strip().split('\n') if n in norm_map]
 
           for k in db.keys(): db[k] = sort_versions(db[k])
+
+          # =========================================================
+          # 🌟 垃圾回收策略 (GC)
+          # =========================================================
+          # 1. Testing 和 Development: 只保留最新 1 个版本
+          db["testing"] = db["testing"][:1]
+          db["development"] = db["development"][:1]
+
+          # 2. Stable: 保留最近两个大版本 (提取 7.x 前缀进行排序)
+          if db["stable"]:
+              majors = set()
+              for v in db["stable"]:
+                  m = re.match(r'^(\d+\.\d+)', v) # 提取 7.23, 7.22 这样的前缀
+                  if m: majors.add(m.group(1))
+              
+              sorted_majors = sort_versions(list(majors))
+              allowed_majors = sorted_majors[:2] # 只保留前两大的前缀
+              
+              new_stable = []
+              for v in db["stable"]:
+                  m = re.match(r'^(\d+\.\d+)', v)
+                  if m and m.group(1) in allowed_majors:
+                      new_stable.append(v)
+              db["stable"] = new_stable
+          
+          # 3. Long-term: 不做任何处理，全量保留
+
           with open('./versions.json', 'w') as f: json.dump(db, f, indent=2)
+
+          # =========================================================
+          # 🌟 生成待删除清单
+          # =========================================================
+          keep_set = set(db["stable"] + db["long-term"] + db["testing"] + db["development"])
+          keep_set.add(version_to_add) # 强制保护当前编译版本
+          
+          to_delete = [v for v in remote_dirs if v.strip() and v.strip() not in keep_set]
+          
+          with open('./delete_list.txt', 'w') as f:
+              f.write('\n'.join(to_delete))
           EOF
 
           python3 update_json.py "${VERSION}" "${CHANNEL}"
 
+          # ==========================================
+          # 🌟 执行物理删除动作
+          # ==========================================
+          echo ">>> 开始清理 VPS 过期历史版本空间..."
+          if [ -s ./delete_list.txt ]; then
+              while IFS= read -r del_ver; do
+                  if [ -n "$del_ver" ]; then
+                      echo "  - 正在粉碎过期版本: $del_ver"
+                      # 同时删除主目录和 extra 扩展目录
+                      ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "rm -rf $WEB_DIR/$del_ver $WEB_DIR/extra/$del_ver"
+                  fi
+              done < ./delete_list.txt
+          else
+              echo "  - 暂无需要清理的过期版本。"
+          fi
+
           echo ">>> 正在通过 Rsync 将固件推送到 VPS..."
-          # 1. 推送主版本包
           rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
-          
-          # 2. 🌟 推送额外工具包 (extra 文件夹)
           rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/extra $SSH_USER@$SSH_HOST:$WEB_DIR/
           
           if [ -f "./vps_upload/NEWESTa7.${CHANNEL}" ]; then
