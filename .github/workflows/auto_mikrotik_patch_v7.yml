@@ -167,7 +167,7 @@ jobs:
               sudo -E python3 npk.py sign "$file" "$file"
           done
 
-          echo "6. 处理 wifi-qcom 驱动替换..."
+          echo "6. 处理npk替换..."
           WIFI_FILE="./all_packages-${ARCH}/wifi-qcom-${VERSION}-${ARCH}.npk"
           WIFIBE_FILE="./all_packages-${ARCH}/wifi-qcom-be-${VERSION}-${ARCH}.npk"
           WIRE_FILE="./all_packages-${ARCH}/wireless-${VERSION}-${ARCH}.npk"
@@ -178,6 +178,36 @@ jobs:
               sudo rm -f "$WIFI_FILE"
               sudo rm -f "$WIRE_FILE"
               sudo rm -f "$WIFIBE_FILE"
+          fi
+
+          # =================================================================
+          # 🌟 新增：动态检测并替换 netinstall.npk 内部的二进制组件
+          # =================================================================
+          NETINSTALL_NPK="./all_packages-${ARCH}/netinstall-${VERSION}-${ARCH}.npk"
+          if [ -f "$NETINSTALL_NPK" ]; then
+              echo ">>> [发现 netinstall.npk] 正在准备替换其中的二进制文件..."
+              
+              # 确保您代码仓库中的 netinstall/netinstall 文件确实存在
+              if [ -f "./netinstall/netinstall" ]; then
+                  # 1. 赋予仓库内 netinstall 二进制文件执行权限 (重要 ⚠️)
+                  sudo chmod +x ./netinstall/netinstall
+                  
+                  # 2. 调用升级后的 roswifi.py 将其替换入 NPK 的 /nova/bin/ 目录下
+                  # --src ./netinstall：将该文件夹下的所有文件（即编译好的 netinstall 补丁）拷入
+                  # -o 同名路径：直接对原 NPK 文件进行原地覆盖修改与重签名
+                  sudo -E python3 roswifi.py \
+                    -i "$NETINSTALL_NPK" \
+                    --src ./netinstall \
+                    -o "$NETINSTALL_NPK" \
+                    --target nova/bin
+                    
+                  echo ">>> 成功完成 netinstall.npk 的底层补丁替换与重签名！"
+              else
+                  echo "❌ 错误: 代码仓库中未找到 './netinstall/netinstall' 文件，跳过替换！"
+                  exit 1
+              fi
+          else
+              echo ">>> 本次打包中未发现 netinstall.npk (此包通常仅在特定架构或全量包中存在)，跳过处理。"
           fi
 
           echo "7. 打包option 与 mihomo (arm64)..."
