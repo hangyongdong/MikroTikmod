@@ -15,6 +15,12 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        /* 补充：结果框的极客淡入动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
     </style>
 </head>
 <body class="text-gray-800 antialiased min-h-screen flex flex-col">
@@ -34,25 +40,29 @@
     <!-- 主要内容区 -->
     <main class="flex-grow max-w-6xl mx-auto w-full px-4 py-8">
         
-        <!-- 版本切换控制面板 -->
+        <!-- 导航控制面板 -->
         <div class="glass-panel rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
                     <h1 class="text-2xl font-extrabold text-gray-900 mb-1">固件版本库</h1>
-                    <p class="text-gray-500 text-sm"><i class="fa-regular fa-clock mr-1"></i> 本站所有资源，仅限爱好者交流学习。。。</p>
+                    <p class="text-gray-500 text-sm"><i class="fa-regular fa-clock mr-1"></i> 本站所有资源，仅用作交流学习</p>
                 </div>
             </div>
 
-            <!-- 频道标签页导航 (Tabs) -->
-            <div class="flex flex-wrap sm:flex-nowrap p-1 mb-6 bg-gray-100/80 rounded-xl border border-gray-200 shadow-inner gap-1">
+            <!-- 频道标签页导航 -->
+            <div class="flex flex-wrap md:flex-nowrap p-1 mb-6 bg-gray-100/80 rounded-xl border border-gray-200 shadow-inner gap-1">
                 <button onclick="switchTab('long-term')" id="tab-long-term" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 transition-all">LongTerm</button>
-                <button onclick="switchTab('stable')" id="tab-stable" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-bold bg-white shadow-sm text-blue-600 border border-gray-200 transition-all">Stable</button>             
+                <button onclick="switchTab('stable')" id="tab-stable" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-bold bg-white shadow-sm text-blue-600 border border-gray-200 transition-all">Stable</button>
                 <button onclick="switchTab('testing')" id="tab-testing" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 transition-all">Testing</button>
                 <button onclick="switchTab('development')" id="tab-development" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 transition-all">Development</button>
+                <!-- 算号器切换标签 -->
+                <button onclick="switchTab('generator')" id="tab-generator" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 transition-all">
+                    <i class="fa-solid fa-key mr-1"></i> License
+                </button>
             </div>
 
-            <!-- 下拉版本选择器 -->
-            <div class="flex items-center gap-3 w-full border-t border-gray-100 pt-5">
+            <!-- 下拉版本选择器 (用于在显示算号器时自动隐藏) -->
+            <div id="selector-wrapper" class="flex items-center gap-3 w-full border-t border-gray-100 pt-5">
                 <label for="version-selector" class="text-gray-600 font-bold text-sm whitespace-nowrap">固件版本 (Version):</label>
                 <div class="relative w-full md:w-64">
                     <select id="version-selector" class="block appearance-none w-full bg-white border border-gray-300 hover:border-gray-400 px-4 py-2 pr-10 rounded-lg shadow-sm leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700 font-bold cursor-pointer transition">
@@ -65,33 +75,92 @@
             </div>
         </div>
 
-        <!-- 1. 更新日志 -->
-        <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-green-500">更新日志 (ChangeLog)</h2>
-        <div class="mb-8 bg-gray-50 border border-gray-200 rounded-lg shadow-inner relative">
-            <div id="changelog-container" class="p-4 h-48 overflow-y-auto custom-scrollbar text-sm text-gray-700 font-mono whitespace-pre-wrap leading-relaxed"></div>
-            <div class="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none rounded-b-lg"></div>
+        <!-- ========================================================= -->
+        <!-- 🌟 盒子 A：固件相关下载 -->
+        <!-- ========================================================= -->
+        <div id="firmware-section">
+            <!-- 1. 更新日志 -->
+            <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-green-500">更新日志 (Changelog)</h2>
+            <div class="mb-8 bg-gray-50 border border-gray-200 rounded-lg shadow-inner relative">
+                <div id="changelog-container" class="p-4 h-48 overflow-y-auto custom-scrollbar text-sm text-gray-700 font-mono whitespace-pre-wrap leading-relaxed"></div>
+                <div class="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none rounded-b-lg"></div>
+            </div>
+
+            <!-- 2. 主系统包下载 -->
+            <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-blue-500">系统包 (System Package)</h2>
+            <div id="main-package-container" class="mb-8"></div>
+
+            <!-- 3. 扩展包列表 -->
+            <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-indigo-500">扩展包 (Extra Packages)</h2>
+            <div id="packages-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[150px] mb-8"></div>
+
+            <!-- 4. 额外工具与驱动下载 -->
+            <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-orange-500">额外工具与驱动 (Extra Tools)</h2>
+            <div id="extra-package-container" class="mb-8"></div>
         </div>
-        
-        <!-- 2. 主系统包下载 -->
-        <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-blue-500">系统包 (System Package)</h2>
-        <div id="main-package-container" class="mb-8"></div>
-        
-        <!-- 3. 扩展包列表 -->
-        <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-indigo-500">扩展包 (Extra Packages)</h2>
-        <div id="packages-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[150px] mb-8"></div>
-        
-        <!-- 4. 额外工具与驱动下载 -->
-        <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-orange-500">额外工具与驱动 (Extra Tools)</h2>
-        <div id="extra-package-container" class="mb-8"></div>
+
+        <!-- ========================================================= -->
+        <!-- 🌟 盒子 B：完美融入、全原生的在线算号器面板 (默认隐藏) -->
+        <!-- ========================================================= -->
+        <div id="generator-section" class="hidden min-h-[500px] max-w-md mx-auto">
+            <div class="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm hover-card">
+                <h3 class="text-xl font-extrabold text-blue-600 text-center mb-6">在线系统授权生成</h3>
+                
+                <div class="space-y-4">
+                    <!-- 模式 & 级别级联选择 -->
+                    <div class="flex gap-3">
+                        <select id="gen-mode" class="block w-full bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="licgenros" selected>RouterOS</option>
+                            <option value="licgenchr">RouterCHR</option>
+                        </select>
+                        <select id="gen-level" class="block w-full bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500">
+                            <!-- 动态加载 -->
+                        </select>
+                    </div>
+
+                    <!-- SWID 输入框 -->
+                    <div>
+                        <input id="gen-swid" type="text" placeholder="输入 Software ID / System ID..." class="block w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                    </div>
+
+                    <!-- 验证码 -->
+                    <div class="flex gap-3 items-center">
+                        <input id="gen-captcha" type="text" placeholder="输入验证码..." class="block w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium" autocomplete="off">
+                        <img src="" id="gen-captcha-img" class="h-11 border border-gray-300 rounded-lg cursor-pointer bg-slate-50" onclick="refreshGenCaptcha()" title="点击刷新">
+                    </div>
+
+                    <!-- 错误展示文本 -->
+                    <div id="gen-error" class="hidden text-red-500 text-xs text-center font-medium"></div>
+
+                    <!-- 算号主按钮 -->
+                    <!-- 🌟 补充：加入禁用时的半透明及禁停鼠标指针样式 -->
+                    <button onclick="generateLicense()" id="btn-submit-gen" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow transition flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="btn-text">生成系统授权</span>
+                    <i id="btn-spinner" class="hidden fa-solid fa-spinner fa-spin ml-2"></i>
+                    </button>
+                </div>
+
+                <!-- 结果展示框 (带精美滚动条的黑客代码块) -->
+                <div id="gen-result-container" class="hidden mt-6 animate-fade-in">
+                    <pre id="gen-lic-text" class="bg-slate-900 text-sky-400 p-4 rounded-lg text-xs font-mono border border-sky-500/30 whitespace-pre-wrap word-break-all max-h-48 overflow-y-auto custom-scrollbar"></pre>
+                    <button onclick="copyGeneratedLicense()" id="btn-copy-gen" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg mt-3 transition text-sm shadow">
+                        复制到剪贴板
+                    </button>
+                </div>
+            </div>
+        </div>
 
     </main>
 
+    <!-- 页脚 -->
     <footer class="bg-gray-800 text-gray-400 py-6 text-center text-sm mt-auto">
         <p>© 2026 RouterOS Custom Mirror. Powered by 红尘有爱.</p>
     </footer>
 
     <!-- 核心逻辑脚本 -->
     <script>
+        // 智能域名深度路径自适应
+        const DOMAIN_ROOT = window.location.origin;
         const BASE_URL = window.location.pathname.includes('/routeros') ? '/routeros' : '';
         
         let categorizedVersions = { 'stable': [], 'long-term': [], 'testing': [], 'development': [] };
@@ -107,9 +176,7 @@
             try {
                 const response = await fetch(url, { method: 'HEAD', cache: 'no-cache' });
                 return response.ok;
-            } catch (e) {
-                return false;
-            }
+            } catch (e) { return false; }
         }
 
         async function initPage() {
@@ -139,6 +206,11 @@
                 }
 
                 document.getElementById('version-selector').addEventListener('change', (e) => loadVersionData(e.target.value));
+                
+                // 初始化算号器表单级联
+                initGeneratorForm();
+                bindEnterKey(); // 🌟 激活回车监听
+                
                 switchTab('stable');
 
             } catch (error) {
@@ -150,13 +222,34 @@
         function switchTab(tabId) {
             currentTab = tabId;
             
-            ['stable', 'long-term', 'testing', 'development'].forEach(t => {
+            const allTabs = ['stable', 'long-term', 'testing', 'development', 'generator'];
+            allTabs.forEach(t => {
                 const btn = document.getElementById(`tab-${t}`);
                 if (btn) {
                     if (t === tabId) btn.className = "flex-1 py-2.5 px-3 rounded-lg text-sm font-bold bg-white shadow-sm text-blue-600 border border-gray-200 transition-all";
                     else btn.className = "flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-200/50 border border-transparent transition-all";
                 }
             });
+
+            const firmwareSection = document.getElementById('firmware-section');
+            const generatorSection = document.getElementById('generator-section');
+            const selectorWrapper = document.getElementById('selector-wrapper');
+
+            // 如果点击的是“在线授权算号”
+            if (tabId === 'generator') {
+                if (firmwareSection) firmwareSection.classList.add('hidden');
+                if (selectorWrapper) selectorWrapper.classList.add('hidden');
+                if (generatorSection) {
+                    generatorSection.classList.remove('hidden');
+                    refreshGenCaptcha(); // 点击时，立刻拉取一次验证码
+                }
+                return;
+            }
+
+            // 点击其他常规固件栏目
+            if (firmwareSection) firmwareSection.classList.remove('hidden');
+            if (selectorWrapper) selectorWrapper.classList.remove('hidden');
+            if (generatorSection) generatorSection.classList.add('hidden');
 
             const selector = document.getElementById('version-selector');
             if (!selector) return;
@@ -167,9 +260,7 @@
             if (targetVersions.length === 0) {
                 selector.innerHTML = `<option value="">该频道暂无可用固件</option>`;
                 selector.disabled = true;
-                if (document.getElementById('main-package-container')) {
-                    document.getElementById('main-package-container').innerHTML = `<div class="text-gray-500 p-4 border border-dashed rounded-lg text-center">无版本数据</div>`;
-                }
+                if (document.getElementById('main-package-container')) document.getElementById('main-package-container').innerHTML = `<div class="text-gray-500 p-4 border border-dashed rounded-lg text-center">无版本数据</div>`;
                 if (document.getElementById('changelog-container')) document.getElementById('changelog-container').textContent = '无数据';
                 if (document.getElementById('extra-package-container')) document.getElementById('extra-package-container').innerHTML = '';
                 if (document.getElementById('packages-grid')) document.getElementById('packages-grid').innerHTML = '';
@@ -184,7 +275,7 @@
                 opt.value = v;
                 let label = `v${v}`;
                 if (v === latestInfo[tabId]) {
-                    label += ` (⭐ 最新)`;
+                    label += ` (⭐Latest)`;
                     opt.selected = true;
                     firstToLoad = v; 
                 }
@@ -196,14 +287,13 @@
         }
 
         async function loadVersionData(version) {
-            if (!version) return;
+            if (!version || currentTab === 'generator') return;
 
             const mainContainer = document.getElementById('main-package-container');
             const changelogContainer = document.getElementById('changelog-container');
             const extraContainer = document.getElementById('extra-package-container');
             const gridContainer = document.getElementById('packages-grid');
 
-            // 骨架屏加载状态 (添加了安全保护，防止元素不存在时崩溃)
             if (mainContainer) mainContainer.innerHTML = `<div class="animate-pulse bg-gray-200 h-20 rounded-lg"></div>`;
             if (changelogContainer) changelogContainer.innerHTML = `<div class="text-gray-400 text-center mt-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>拉取日志中...</div>`;
             if (extraContainer) extraContainer.innerHTML = `<div class="animate-pulse bg-gray-200 h-20 rounded-lg"></div>`;
@@ -212,7 +302,6 @@
             try {
                 const mainArch = 'arm64'; 
                 
-                // 1. 渲染主系统包
                 if (mainContainer) {
                     mainContainer.innerHTML = `
                         <div class="glass-panel rounded-lg border border-blue-200 p-4 flex justify-between items-center hover-card bg-blue-50/30">
@@ -220,7 +309,7 @@
                                 <i class="fa-solid fa-cube text-3xl text-blue-500 mr-4"></i>
                                 <div>
                                     <h3 class="font-bold text-gray-800 text-lg">routeros-${version}-${mainArch}.npk</h3>
-                                    <p class="text-xs text-gray-500 mt-1">核心系统主包 | 架构: ${mainArch.toUpperCase()}</p>
+                                    <p class="text-xs text-gray-500 mt-1">系统机型主包 | 架构: ${mainArch.toUpperCase()}</p>
                                 </div>
                             </div>
                             <a href="${BASE_URL}/${version}/routeros-${version}-${mainArch}.npk" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg shadow transition text-sm font-medium flex items-center">
@@ -230,7 +319,6 @@
                     `;
                 }
 
-                // 2. 智能探测并渲染额外工具和特殊驱动 (添加了防报错安全保护)
                 if (extraContainer) {
                     const netinstallUrl = `${BASE_URL}/extra/${version}/netinstall-${version}.zip`;
                     const wifiRUrl = `${BASE_URL}/extra/${version}/wifi-qcom-${version}-${mainArch}-R.npk`;
@@ -248,7 +336,7 @@
                                     <i class="fa-solid fa-tools text-2xl text-orange-500 mr-3 mt-1"></i>
                                     <div class="overflow-hidden">
                                         <h3 class="font-bold text-gray-700 truncate">netinstall-${version}.zip</h3>
-                                        <p class="text-xs text-gray-400 mt-1">官方救砖和刷机工具</p>
+                                        <p class="text-xs text-gray-400 mt-1">官方救砖和刷机工具 (patch)</p>
                                     </div>
                                 </div>
                                 <a href="${netinstallUrl}" class="mt-2 text-center bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-600 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center">
@@ -280,7 +368,6 @@
                     }
                 }
 
-                // 3. 渲染 CHANGELOG
                 if (changelogContainer) {
                     fetch(`${BASE_URL}/${version}/CHANGELOG?t=${new Date().getTime()}`)
                         .then(res => res.ok ? res.text() : '未提供更新日志')
@@ -288,7 +375,6 @@
                         .catch(() => changelogContainer.innerHTML = '<span class="text-red-400">拉取失败</span>');
                 }
 
-                // 4. 渲染扩展包
                 if (gridContainer) {
                     const csvRes = await fetch(`${BASE_URL}/${version}/packages.csv?t=${new Date().getTime()}`);
                     if (!csvRes.ok) throw new Error(`无法获取 packages.csv`);
@@ -325,6 +411,127 @@
             }
         }
 
+        // ==========================================
+        // 🌟 新增：在线算号器的完整原生 JavaScript 控制逻辑
+        // ==========================================
+        function initGeneratorForm() {
+            const modeSelect = document.getElementById('gen-mode');
+            if (modeSelect) {
+                modeSelect.addEventListener('change', updateLevelOptions);
+                updateLevelOptions();
+            }
+        }
+
+        function updateLevelOptions() {
+            const mode = document.getElementById('gen-mode').value;
+            const levelSelect = document.getElementById('gen-level');
+            if (!levelSelect) return;
+            
+            levelSelect.innerHTML = '';
+            let options = [];
+            if (mode === 'licgenros') {
+                options = [
+                    { text: 'Level 6', value: '6' },
+                    { text: 'Level 5', value: '5' },
+                    { text: 'Level 4', value: '4' }
+                ];
+            } else {
+                options = [
+                    { text: 'P-Unlimited', value: '3' },
+                    { text: 'P10', value: '2' },
+                    { text: 'P1', value: '1' }
+                ];
+            }
+            options.forEach(opt => {
+                levelSelect.innerHTML += `<option value="${opt.value}">${opt.text}</option>`;
+            });
+        }
+
+        function refreshGenCaptcha() {
+            const captchaImg = document.getElementById('gen-captcha-img');
+            if (captchaImg) {
+                // 指向 NPM 代理在根域名下的 /captcha 路径
+                captchaImg.src = `/captcha?t=${new Date().getTime()}`;
+            }
+        }
+
+        async function generateLicense() {
+            const swid = document.getElementById('gen-swid').value.trim();
+            const mode = document.getElementById('gen-mode').value;
+            const level = document.getElementById('gen-level').value;
+            const captcha = document.getElementById('gen-captcha').value.trim();
+            const errBox = document.getElementById('gen-error');
+            const resContainer = document.getElementById('gen-result-container');
+            const btnText = document.getElementById('btn-text');
+            const btnSpinner = document.getElementById('btn-spinner');
+
+            if (!swid || !captcha) {
+                errBox.innerText = "请输入完整的注册 ID 与验证码！";
+                errBox.classList.remove('hidden');
+                return;
+            }
+            errBox.classList.add('hidden');
+
+            // 按钮进入 Loading 状态
+            btnText.innerText = "正在算号...";
+            btnSpinner.classList.remove('hidden');
+            document.getElementById('btn-submit-gen').disabled = true;
+
+            try {
+                // 向 NPM 反代的 /api/generate 发送 json 数据
+                const response = await fetch(`/api/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ swid, mode, level, captcha })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'success') {
+                    document.getElementById('gen-lic-text').innerText = data.result;
+                    resContainer.classList.remove('hidden');
+                } else {
+                    errBox.innerText = data.message || "请求服务器出错，请稍后重试";
+                    errBox.classList.remove('hidden');
+                    resContainer.classList.add('hidden');
+                    refreshGenCaptcha(); // 出错或验证码不对，自动更新一次验证码
+                }
+            } catch (e) {
+                console.error(e);
+                errBox.innerText = "网络连接超时，请检查服务是否正常启动";
+                errBox.classList.remove('hidden');
+            } finally {
+                // 按钮恢复正常
+                btnText.innerText = "生成系统授权";
+                btnSpinner.classList.add('hidden');
+                document.getElementById('btn-submit-gen').disabled = false;
+                document.getElementById('gen-captcha').value = ''; // 校验后清空输入框
+            }
+        }
+
+        function copyGeneratedLicense() {
+            const text = document.getElementById("gen-lic-text").innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById("btn-copy-gen");
+                btn.innerText = "已复制到剪贴板！";
+                setTimeout(() => { btn.innerText = "复制到剪贴板"; }, 2000);
+            });
+        }
+        // 补充：支持回车键快捷算号
+        function bindEnterKey() {
+            const inputs = ['gen-swid', 'gen-captcha'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('keypress', function (e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault(); // 阻止默认的回车刷新行为
+                            generateLicense();  // 触发算号
+                        }
+                    });
+                }
+            });
+        }
         window.addEventListener('DOMContentLoaded', initPage);
     </script>
 </body>
