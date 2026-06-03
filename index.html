@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RouterOS 固件中心</title>
-    <!-- 内联矢量级精美 3D 几何魔方图标 (已完美适配网站主题蓝色) -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M 50,8 L 85,28 L 85,72 L 50,92 L 15,72 L 15,28 Z' fill='%232563eb' stroke='%232563eb' stroke-width='8' stroke-linejoin='round'/><path d='M 25,64 L 25,36 L 50,22 L 75,36 L 75,64 M 25,36 L 50,50 L 75,36 M 50,50 L 50,78' fill='none' stroke='white' stroke-width='11' stroke-linecap='round' stroke-linejoin='round'/></svg>">
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -17,7 +16,6 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        /* 补充：结果框的极客淡入动画 */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -63,9 +61,9 @@
                 </button>
             </div>
 
-            <!-- 下拉版本选择器 (用于在显示算号器时自动隐藏) -->
+            <!-- 下拉版本选择器 -->
             <div id="selector-wrapper" class="flex items-center gap-3 w-full border-t border-gray-100 pt-5">
-                <label for="version-selector" class="text-gray-600 font-bold text-sm whitespace-nowrap">固件版本 (Version):</label>
+                <label for="version-selector" class="text-gray-600 font-bold text-sm whitespace-nowrap">版本 (Version):</label>
                 <div class="relative w-full md:w-64">
                     <select id="version-selector" class="block appearance-none w-full bg-white border border-gray-300 hover:border-gray-400 px-4 py-2 pr-10 rounded-lg shadow-sm leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700 font-bold cursor-pointer transition">
                         <option>正在获取版本列表...</option>
@@ -78,7 +76,7 @@
         </div>
 
         <!-- ========================================================= -->
-        <!-- 🌟 盒子 A：固件相关下载 -->
+        <!-- 🌟 BOX A -->
         <!-- ========================================================= -->
         <div id="firmware-section">
             <!-- 1. 更新日志 -->
@@ -102,7 +100,7 @@
         </div>
 
         <!-- ========================================================= -->
-        <!-- 🌟 盒子 B：完美融入、全原生的在线算号器面板 (默认隐藏) -->
+        <!-- 🌟 BOX B -->
         <!-- ========================================================= -->
         <div id="generator-section" class="hidden min-h-[500px] max-w-md mx-auto">
             <div class="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm hover-card">
@@ -135,14 +133,13 @@
                     <div id="gen-error" class="hidden text-red-500 text-xs text-center font-medium"></div>
 
                     <!-- 算号主按钮 -->
-                    <!-- 🌟 补充：加入禁用时的半透明及禁停鼠标指针样式 -->
                     <button onclick="generateLicense()" id="btn-submit-gen" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow transition flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed">
                     <span id="btn-text">生成系统授权</span>
                     <i id="btn-spinner" class="hidden fa-solid fa-spinner fa-spin ml-2"></i>
                     </button>
                 </div>
 
-                <!-- 结果展示框 (带精美滚动条的黑客代码块) -->
+                <!-- 结果展示框 -->
                 <div id="gen-result-container" class="hidden mt-6 animate-fade-in">
                     <pre id="gen-lic-text" class="bg-slate-900 text-sky-400 p-4 rounded-lg text-xs font-mono border border-sky-500/30 whitespace-pre-wrap word-break-all max-h-48 overflow-y-auto custom-scrollbar"></pre>
                     <button onclick="copyGeneratedLicense()" id="btn-copy-gen" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg mt-3 transition text-sm shadow">
@@ -338,7 +335,7 @@
                                     <i class="fa-solid fa-tools text-2xl text-orange-500 mr-3 mt-1"></i>
                                     <div class="overflow-hidden">
                                         <h3 class="font-bold text-gray-700 truncate">netinstall-${version}.zip</h3>
-                                        <p class="text-xs text-gray-400 mt-1">官方救砖和刷机工具 (patch)</p>
+                                        <p class="text-xs text-gray-400 mt-1">官方救砖和刷机工具 (patched)</p>
                                     </div>
                                 </div>
                                 <a href="${netinstallUrl}" class="mt-2 text-center bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-600 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center">
@@ -414,7 +411,7 @@
         }
 
         // ==========================================
-        // 🌟 新增：在线算号器的完整原生 JavaScript 控制逻辑
+        // 在线算号器的完整原生 JavaScript 控制逻辑
         // ==========================================
         function initGeneratorForm() {
             const modeSelect = document.getElementById('gen-mode');
@@ -452,7 +449,6 @@
         function refreshGenCaptcha() {
             const captchaImg = document.getElementById('gen-captcha-img');
             if (captchaImg) {
-                // 指向 NPM 代理在根域名下的 /captcha 路径
                 captchaImg.src = `/captcha?t=${new Date().getTime()}`;
             }
         }
@@ -519,7 +515,7 @@
                 setTimeout(() => { btn.innerText = "复制到剪贴板"; }, 2000);
             });
         }
-        // 补充：支持回车键快捷算号
+        // 支持回车键快捷算号
         function bindEnterKey() {
             const inputs = ['gen-swid', 'gen-captcha'];
             inputs.forEach(id => {
