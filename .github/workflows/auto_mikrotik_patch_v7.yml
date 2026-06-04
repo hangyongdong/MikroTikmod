@@ -222,7 +222,26 @@ jobs:
               exit 1
           fi
           cd mihomo_src
-          GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o ../mihomo_temp main.go
+
+          # =========================================================
+          # 🌟 核心魔法：生成一个自动注册环境变量的 Go 源文件
+          # =========================================================
+          echo ">>> 正在注入 RouterOS 专属 SSL 证书路径..."
+          cat << 'EOF' > init_env.go
+          package main
+
+          import "os"
+
+          func init() {
+          // 强制指定 RouterOS 下的根证书路径
+          os.Setenv("SSL_CERT_FILE", "/flash/cacert.pem")
+          // (可选) 兼容其他部分库可能会读取 DIR 的情况
+          os.Setenv("SSL_CERT_DIR", "/flash")
+          }
+          EOF
+
+          # ⚠️ 编译命令小修改：加上 init_env.go 一同编译
+          GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o ../mihomo_temp main.go init_env.go
           cd ..
           rm -rf mihomo_src          
           if [ ! -f "mihomo_temp" ]; then
