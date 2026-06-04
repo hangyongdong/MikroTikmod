@@ -154,6 +154,17 @@
     <!-- 页脚 -->
     <footer class="bg-gray-800 text-gray-400 py-6 text-center text-sm mt-auto">
         <p>© 2026 RouterOS Custom Mirror. Powered by 红尘有爱.</p>
+        
+        <!-- 访客统计组件 -->
+        <div class="mt-2.5 text-xs text-gray-500 flex justify-center items-center gap-3">
+            <span id="busuanzi_container_site_uv" style="display:none" title="总独立访客数 (UV)">
+                <i class="fa-solid fa-user-astronaut mr-1"></i>访客: <span id="busuanzi_value_site_uv" class="font-mono text-gray-300 font-bold ml-0.5"></span>
+            </span>
+            <span class="text-gray-600 text-[10px]">•</span>
+            <span id="busuanzi_container_site_pv" style="display:none" title="总页面浏览量 (PV)">
+                <i class="fa-solid fa-eye mr-1"></i>浏览: <span id="busuanzi_value_site_pv" class="font-mono text-gray-300 font-bold ml-0.5"></span>
+            </span>
+        </div>
     </footer>
 
     <!-- 核心逻辑脚本 -->
@@ -532,5 +543,7 @@
         }
         window.addEventListener('DOMContentLoaded', initPage);
     </script>
+    <!-- 🌟 新增： -->
+    <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 </body>
 </html>
