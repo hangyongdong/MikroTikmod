@@ -224,23 +224,21 @@ jobs:
           cd mihomo_src
 
           # =========================================================
-          # 🌟 核心魔法：生成一个自动注册环境变量的 Go 源文件
+          # 🌟 魔法 1：生成环境变量注入代码，指向 NPK 挂载后的绝对路径
           # =========================================================
-          echo ">>> 正在注入 RouterOS 专属 SSL 证书路径..."
+          echo ">>> 正在注入 RouterOS NPK 专属 SSL 证书路径..."
           cat << 'EOF' > init_env.go
           package main
 
           import "os"
 
           func init() {
-          // 强制指定 RouterOS 下的根证书路径
-          os.Setenv("SSL_CERT_FILE", "/flash/cacert.pem")
-          // (可选) 兼容其他部分库可能会读取 DIR 的情况
-          os.Setenv("SSL_CERT_DIR", "/flash")
+              // NPK 安装后会被挂载在 /pckg/mihomo/ 目录下
+              os.Setenv("SSL_CERT_FILE", "/pckg/mihomo/bin/cacert.pem")
           }
           EOF
 
-          # ⚠️ 编译命令小修改：加上 init_env.go 一同编译
+          # 带着 init_env.go 一起编译
           GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o ../mihomo_temp main.go init_env.go
           cd ..
           rm -rf mihomo_src          
@@ -250,7 +248,14 @@ jobs:
           fi          
           sudo mv mihomo_temp ./mihomo-root/bin/mihomo
           sudo chmod +x ./mihomo-root/bin/mihomo          
-          echo ">>> Mihomo 编译成功！"
+          
+          # =========================================================
+          # 🌟 魔法 2：下载全球最权威的 curl 根证书包，塞进 NPK 目录！
+          # =========================================================
+          echo ">>> 正在打包系统根证书 (cacert.pem)..."
+          sudo curl -sL "https://curl.se/ca/cacert.pem" -o ./mihomo-root/bin/cacert.pem
+          
+          echo ">>> Mihomo 编译与证书融合成功！"
           
           echo ">>> 正在制作option NPK..."
           if [ -f "./busybox/busybox_aarch64" ]; then
