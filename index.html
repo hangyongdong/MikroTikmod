@@ -9,13 +9,24 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        /* 1. 引入在线分片托管的更纱黑体 (基于思源黑体与 Iosevka 缝合) */
+        @import url("https://fontsapi.zeoseven.com/161/main/result.css");
+
+        body { 
+            background-color: #f3f4f6; 
+            
+            /* 2. 优先使用更纱黑体（Sarasa Gothic SC） */
+            /* 如果没加载完，依次降级使用本地的 Consolas, 微软雅黑 或是系统默认等宽 */
+            font-family: "Sarasa Gothic SC", Consolas, Monaco, "Microsoft YaHei", monospace; 
+        }
+        
         .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
         .hover-card:hover { transform: translateY(-2px); transition: all 0.2s ease-in-out; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
