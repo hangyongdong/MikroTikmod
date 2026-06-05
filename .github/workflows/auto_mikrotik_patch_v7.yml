@@ -234,7 +234,7 @@ jobs:
 
           func init() {
               // NPK 安装后会被挂载在 /pckg/mihomo/ 目录下
-              os.Setenv("SSL_CERT_FILE", "/pckg/mihomo/bin/cacert.pem")
+              os.Setenv("SSL_CERT_FILE", "/pckg/mihomo/certs/cacert.pem")
           }
           EOF
 
@@ -253,7 +253,8 @@ jobs:
           # 🌟 魔法 2：下载全球最权威的 curl 根证书包，塞进 NPK 目录！
           # =========================================================
           echo ">>> 正在打包系统根证书 (cacert.pem)..."
-          sudo curl -sL "https://curl.se/ca/cacert.pem" -o ./mihomo-root/bin/cacert.pem
+          sudo mkdir -p ./mihomo-root/certs
+          sudo curl -sL "https://curl.se/ca/cacert.pem" -o ./mihomo-root/certs/cacert.pem
           
           echo ">>> Mihomo 编译与证书融合成功！"
           
