@@ -180,16 +180,13 @@ jobs:
               sudo rm -f "$WIFIBE_FILE"
           fi
 
-          # =================================================================
-          # 🌟 新增：动态检测并替换 netinstall.npk 内部的二进制组件
-          # =================================================================
           NETINSTALL_NPK="./all_packages-${ARCH}/netinstall-${VERSION}-${ARCH}.npk"
           if [ -f "$NETINSTALL_NPK" ]; then
               echo ">>> [发现 netinstall.npk] 正在准备替换其中的二进制文件..."
               
               # 确保您代码仓库中的 netinstall/netinstall 文件确实存在
               if [ -f "./netinstall/netinstall" ]; then
-                  # 1. 赋予仓库内 netinstall 二进制文件执行权限 (重要 ⚠️)
+                  # 1. 赋予仓库内 netinstall 二进制文件执行权限
                   sudo chmod +x ./netinstall/netinstall
                   
                   # 2. 调用升级后的 roswifi.py 将其替换入 NPK 的 /nova/bin/ 目录下
@@ -223,9 +220,7 @@ jobs:
           fi
           cd mihomo_src
 
-          # =========================================================
-          # 🌟 魔法 1：生成环境变量注入代码，指向 NPK 挂载后的绝对路径
-          # =========================================================
+
           echo ">>> 正在注入 RouterOS NPK 专属 SSL 证书路径..."
           cat << 'EOF' > init_env.go
           package main
@@ -249,9 +244,7 @@ jobs:
           sudo mv mihomo_temp ./mihomo-root/bin/mihomo
           sudo chmod +x ./mihomo-root/bin/mihomo          
           
-          # =========================================================
-          # 🌟 魔法 2：下载全球最权威的 curl 根证书包，塞进 NPK 目录！
-          # =========================================================
+
           echo ">>> 正在打包系统根证书 (cacert.pem)..."
           sudo mkdir -p ./mihomo-root/certs
           sudo curl -sL "https://curl.se/ca/cacert.pem" -o ./mihomo-root/certs/cacert.pem
@@ -419,9 +412,6 @@ jobs:
 
           for k in db.keys(): db[k] = sort_versions(db[k])
 
-          # =========================================================
-          # 🌟 垃圾回收策略 (GC)
-          # =========================================================
           # 1. Testing 和 Development: 只保留最新 1 个版本
           db["testing"] = db["testing"][:1]
           db["development"] = db["development"][:1]
@@ -447,9 +437,7 @@ jobs:
 
           with open('./versions.json', 'w') as f: json.dump(db, f, indent=2)
 
-          # =========================================================
-          # 🌟 生成待删除清单
-          # =========================================================
+
           keep_set = set(db["stable"] + db["long-term"] + db["testing"] + db["development"])
           keep_set.add(version_to_add) # 强制保护当前编译版本
           
@@ -461,9 +449,6 @@ jobs:
 
           python3 update_json.py "${VERSION}" "${CHANNEL}"
 
-          # ==========================================
-          # 🌟 执行物理删除动作
-          # ==========================================
           echo ">>> 开始清理 VPS 过期历史版本空间..."
           if [ -s ./delete_list.txt ]; then
               while IFS= read -r del_ver; do
