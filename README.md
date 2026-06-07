@@ -1,7 +1,7 @@
 
 
 ## 固件适用于arm64设备
-[![Mikrotik Auto Release](https://github.com/ydhang2024/MikroTikPatch/actions/workflows/auto_mikrotik_patch7.yml/badge.svg)](https://github.com/hangyongdong/MikroTikmod/actions/workflows/mikrotik_Auto_Release.yml)
+[![Mikrotik Auto Release](https://github.com/hangyongdong/MikroTikmod/actions/workflows/auto_mikrotik_patch7.yml/badge.svg)](https://github.com/hangyongdong/MikroTikmod/actions/workflows/auto_mikrotik_patch_V7.yml)
 
 ### wifi包patch：
    all_packages中X结尾的wifi-qcom包适用于小米ax1800和ax3600    
