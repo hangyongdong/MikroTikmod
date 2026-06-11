@@ -2,7 +2,7 @@ name: Auto MikroTik RouterOS V7 Release & Publisher
 
 on:
   schedule:
-    - cron: '0 14 * * *'
+    - cron: '0 10 * * *'
   workflow_dispatch:
     inputs:
       version:
@@ -58,23 +58,29 @@ jobs:
           
           for channel in stable long-term testing development; do
               echo ">>> 正在检查频道: $channel"
-              OFFICIAL_NEWEST=$(curl -sL "https://upgrade.mikrotik.com/routeros/NEWESTa7.$channel" || echo "")
+              
+              # 🌟 修复 1：加上 -f 参数，遇 404 错误直接失败返回空，杜绝下载 HTML
+              OFFICIAL_NEWEST=$(curl -sLf "https://upgrade.mikrotik.com/routeros/NEWESTa7.$channel" || echo "")
               OFFICIAL_VER=$(echo "$OFFICIAL_NEWEST" | awk '{print $1}')
               
-              CUSTOM_NEWEST=$(curl -sL "https://${CUSTOM_UPGRADE_URL}/NEWESTa7.$channel" || echo "")
+              CUSTOM_NEWEST=$(curl -sLf "https://${CUSTOM_UPGRADE_URL}/NEWESTa7.$channel" || echo "")
               CUSTOM_VER=$(echo "$CUSTOM_NEWEST" | awk '{print $1}')
+              
+              # 🌟 修复 2：如果提取的版本号不是以数字开头（比如残留的 HTML 代码），强制清空
+              if [[ ! "$OFFICIAL_VER" =~ ^[0-9] ]]; then OFFICIAL_VER=""; fi
+              if [[ ! "$CUSTOM_VER" =~ ^[0-9] ]]; then CUSTOM_VER=""; fi
               
               if [ -n "$OFFICIAL_VER" ]; then
                   UPDATE=false
                   if [ -z "$CUSTOM_VER" ]; then
-                      echo "  - 本地无记录，准备首次发布: $OFFICIAL_VER"
+                      echo "  - 本地无有效记录，准备首次发布: $OFFICIAL_VER"
                       UPDATE=true
                   elif [ "$OFFICIAL_VER" != "$CUSTOM_VER" ]; then
                       # 精确处理: 在 beta, rc, alpha 前加上 ~ 符号，以符合 Debian 的严格版本排序规范
                       NORM_OFFICIAL=$(echo "$OFFICIAL_VER" | sed -E 's/(beta|rc|alpha)/~\1/g')
                       NORM_CUSTOM=$(echo "$CUSTOM_VER" | sed -E 's/(beta|rc|alpha)/~\1/g')
                       
-                      # 使用 Ubuntu 底层的 dpkg 命令进行语义化比较 (处理能力比 sort -V 更强更准)
+                      # 使用 Ubuntu 底层的 dpkg 命令进行语义化比较
                       if dpkg --compare-versions "$NORM_OFFICIAL" gt "$NORM_CUSTOM"; then
                           echo "  - 发现新版本: $CUSTOM_VER -> $OFFICIAL_VER"
                           UPDATE=true
@@ -86,6 +92,8 @@ jobs:
                   else
                       echo "  - 已是最新版 ($CUSTOM_VER)，跳过。"
                   fi
+              else
+                  echo "  - 官方该频道 ($channel) 未提供更新或抓取失败，跳过。"
               fi
           done
           
