@@ -38,7 +38,11 @@ jobs:
       - name: 对比版本并生成构建矩阵
         id: set-matrix
         env:
-          CUSTOM_UPGRADE_URL: ${{ secrets.CUSTOM_UPGRADE_URL }}
+          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+          SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          WEB_DIR: ${{ secrets.VPS_WEB_DIR }}
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
               echo ">>> 检测到手动触发，使用指定的版本和频道..."
@@ -53,20 +57,25 @@ jobs:
               exit 0
           fi
 
+          echo ">>> 正在配置 SSH 密钥以便读取 VPS 本地版本..."
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
+
           echo ">>> 开启自动巡检模式..."
           JSON_ARRAY="[]"
           
           for channel in stable long-term testing development; do
               echo ">>> 正在检查频道: $channel"
               
-              # 🌟 修复 1：加上 -f 参数，遇 404 错误直接失败返回空，杜绝下载 HTML
+              # 官方依然用 curl 拉取（官方服务器不会拦截 GitHub）
               OFFICIAL_NEWEST=$(curl -sLf "https://upgrade.mikrotik.com/routeros/NEWESTa7.$channel" || echo "")
               OFFICIAL_VER=$(echo "$OFFICIAL_NEWEST" | awk '{print $1}')
               
-              CUSTOM_NEWEST=$(curl -sLf "https://${CUSTOM_UPGRADE_URL}/NEWESTa7.$channel" || echo "")
+              CUSTOM_NEWEST=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cat $WEB_DIR/NEWESTa7.$channel 2>/dev/null" || echo "")
               CUSTOM_VER=$(echo "$CUSTOM_NEWEST" | awk '{print $1}')
               
-              # 🌟 修复 2：如果提取的版本号不是以数字开头（比如残留的 HTML 代码），强制清空
               if [[ ! "$OFFICIAL_VER" =~ ^[0-9] ]]; then OFFICIAL_VER=""; fi
               if [[ ! "$CUSTOM_VER" =~ ^[0-9] ]]; then CUSTOM_VER=""; fi
               
@@ -76,11 +85,9 @@ jobs:
                       echo "  - 本地无有效记录，准备首次发布: $OFFICIAL_VER"
                       UPDATE=true
                   elif [ "$OFFICIAL_VER" != "$CUSTOM_VER" ]; then
-                      # 精确处理: 在 beta, rc, alpha 前加上 ~ 符号，以符合 Debian 的严格版本排序规范
                       NORM_OFFICIAL=$(echo "$OFFICIAL_VER" | sed -E 's/(beta|rc|alpha)/~\1/g')
                       NORM_CUSTOM=$(echo "$CUSTOM_VER" | sed -E 's/(beta|rc|alpha)/~\1/g')
                       
-                      # 使用 Ubuntu 底层的 dpkg 命令进行语义化比较
                       if dpkg --compare-versions "$NORM_OFFICIAL" gt "$NORM_CUSTOM"; then
                           echo "  - 发现新版本: $CUSTOM_VER -> $OFFICIAL_VER"
                           UPDATE=true
@@ -315,7 +322,7 @@ jobs:
         if: ${{ matrix.build.publish_to_vps == true }}
         env:
           SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
-          SSH_PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
+          SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
           SSH_USER: ${{ secrets.VPS_SSH_USER }}
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           WEB_DIR: ${{ secrets.VPS_WEB_DIR }}
