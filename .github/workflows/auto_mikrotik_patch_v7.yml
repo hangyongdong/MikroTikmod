@@ -30,7 +30,7 @@ permissions:
 
 jobs:
   check-updates:
-    name: 🔍 检查版本更新
+    name: Check Updates
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -108,7 +108,7 @@ jobs:
           echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
 
   patch-and-pack:
-    name: 📦 编译发布 (${{ matrix.build.channel }} - ${{ matrix.build.version }})
+    name: Patch_ROS(${{ matrix.build.channel }} - ${{ matrix.build.version }})
     needs: check-updates
     if: ${{ needs.check-updates.outputs.matrix != '[]' }}
     runs-on: ubuntu-latest
