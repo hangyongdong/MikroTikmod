@@ -347,7 +347,7 @@
             const levelSelect = document.getElementById('gen-level');
             if (!levelSelect) return;
             levelSelect.innerHTML = '';
-            let options = (mode === 'licgenros') ? ['6', '5', '4'] : ['P-Unlimited', 'P10', 'P1'];
+            let options = (mode === 'licgenros') ? ['Level6', 'Level5', 'Level4'] : ['P-Unlimited', 'P10', 'P1'];
             let vals = (mode === 'licgenros') ? ['6', '5', '4'] : ['3', '2', '1'];
             options.forEach((opt, idx) => {
                 levelSelect.innerHTML += `<option value="${vals[idx]}">${opt}</option>`;
