@@ -88,22 +88,22 @@
             <div id="data-grid" class="grid grid-cols-1 md:grid-cols-3 gap-12 hidden">
                 
                 <div>
-                    <h3 class="text-xs font-bold text-gray-800 font-mono tracking-widest mb-6 uppercase">System Package</h3>
+                    <h3 class="text-base font-bold text-gray-800 font-mono tracking-widest mb-6 uppercase">System Package</h3>
                     <div id="col-system" class="space-y-4"></div>
                 </div>
 
                 <div>
-                    <h3 class="text-xs font-bold text-gray-800 font-mono tracking-widest mb-6 uppercase">Extra Packages</h3>
+                    <h3 class="text-base font-bold text-gray-800 font-mono tracking-widest mb-6 uppercase">Extra Packages</h3>
                     <div id="col-extra" class="grid grid-cols-2 gap-y-4 gap-x-6"></div>
                     <div class="mt-6 pt-4 border-t border-gray-200">
-                        <a href="https://help.mikrotik.com/docs/display/ROS/Packages" target="_blank" class="text-sm text-gray-600 hover:text-black hover:underline transition-colors flex items-center font-mono">
+                        <a href="https://help.mikrotik.com/docs/display/ROS/Packages" target="_blank" class="text-base text-gray-600 hover:text-black hover:underline transition-colors flex items-center font-mono">
                             <i class="fa-solid fa-arrow-right mr-2 text-xs"></i> More about packages
                         </a>
                     </div>
                 </div>
 
                 <div>
-                    <h3 class="text-xs font-bold text-gray-800 font-mono tracking-widest mb-6 uppercase">More & Tools</h3>
+                    <h3 class="text-base font-bold text-gray-800 font-mono tracking-widest mb-6 uppercase">More</h3>
                     <div id="col-more" class="space-y-5"></div>
                 </div>
 
@@ -433,7 +433,7 @@
                 
                 // [列1：系统主包]
                 colSys.innerHTML = `
-                    <a href="${BASE_URL}/${version}/routeros-${version}-${mainArch}.npk" class="flex items-center text-sm text-gray-700 hover:text-black hover:underline group font-mono">
+                    <a href="${BASE_URL}/${version}/routeros-${version}-${mainArch}.npk" class="flex items-center text-base text-gray-700 hover:text-black hover:underline group font-mono">
                         <i class="fa-solid fa-cube mr-3 text-gray-400 group-hover:text-black transition-colors w-4 text-center"></i> 
                         RouterOS
                     </a>
@@ -452,14 +452,14 @@
                                 <i class="fa-solid fa-file-zipper mr-3 text-gray-400 w-4 text-center"></i> Netinstall:
                             </span>
                             <div class="pl-7 space-y-2">
-                                <a href="${netinstallUrl}" class="block text-sm text-gray-600 hover:text-black hover:underline font-mono">Windows / CLI (Zip)</a>
+                                <a href="${netinstallUrl}" class="block text-base text-gray-600 hover:text-black hover:underline font-mono">Windows / CLI (Zip)</a>
                             </div>
                         </div>`;
                 }
                 if (hasWifiR) {
                     moreHtml += `
                         <div>
-                            <span class="flex items-center text-sm text-gray-800 mb-2 mt-4 font-mono">
+                            <span class="flex items-center text-base text-gray-800 mb-2 mt-4 font-mono">
                                 <i class="fa-solid fa-wifi mr-3 text-gray-400 w-4 text-center"></i> Legacy Driver:
                             </span>
                             <div class="pl-7 space-y-2">
@@ -470,7 +470,7 @@
                 
                 moreHtml += `
                         <div>
-                            <span class="flex items-center text-sm text-gray-800 mb-2 mt-4 font-mono">
+                            <span class="flex items-center text-base text-gray-800 mb-2 mt-4 font-mono">
                                 <i class="fa-solid fa-key mr-3 text-gray-400 w-4 text-center"></i> License:
                             </span>
                             <div class="pl-7 space-y-2">
@@ -497,7 +497,7 @@
                     const [arch, name, size] = lines[i].trim().split(',');
                     if (arch === 'arm64' && name && size) {
                         extHtml += `
-                            <a href="${BASE_URL}/${version}/${name}-${version}-${arch}.npk" class="flex items-center text-sm text-gray-700 hover:text-black hover:underline group truncate font-mono" title="${name} (${formatBytes(parseInt(size))})">
+                            <a href="${BASE_URL}/${version}/${name}-${version}-${arch}.npk" class="flex items-center text-base text-gray-700 hover:text-black hover:underline group truncate font-mono" title="${name} (${formatBytes(parseInt(size))})">
                                 <i class="fa-solid fa-box-open mr-3 text-gray-400 group-hover:text-black transition-colors w-4 text-center"></i> 
                                 ${name}
                             </a>
