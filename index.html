@@ -109,9 +109,9 @@
                     <h3 class="text-base font-bold text-gray-800 font-mono tracking-widest mb-6 uppercase">Extra Packages</h3>
                     <div id="col-extra" class="grid grid-cols-2 gap-y-4 gap-x-6"></div>
                     <div class="mt-6 pt-4 border-t border-gray-200 flex items-center text-base text-gray-600 font-mono">
-                        <i class="fa-solid fa-arrow-right mr-2 text-base text-gray-400"></i>
-                        <span>More about&nbsp;</span>
-                        <a href="https://help.mikrotik.com/docs/display/ROS/Packages" target="_blank" class="underline decoration-gray-300 underline-offset-4 hover:text-black hover:decoration-black transition-colors">packages</a>
+                        <i class="fa-solid fa-arrow-right mr-2 text-base text-black"></i>
+                        <span class="text-black">More about&nbsp;</span>
+                        <a href="https://help.mikrotik.com/docs/display/ROS/Packages" target="_blank" class="text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors">packages</a>
                     </div>
                 </div>
 
@@ -447,9 +447,9 @@
                 
                 // [列1：系统主包]
                 colSys.innerHTML = `
-                    <a href="${BASE_URL}/${version}/routeros-${version}-${mainArch}.npk" class="flex items-center text-base text-gray-700 hover:text-black hover:underline group font-mono">
-                        <i class="fa-solid fa-cube mr-3 text-gray-400 group-hover:text-black transition-colors w-4 text-center"></i> 
-                        RouterOS
+                    <a href="${BASE_URL}/${version}/routeros-${version}-${mainArch}.npk" class="flex items-center text-base group font-mono w-fit">
+                        <i class="fa-solid fa-cube mr-3 text-black group-hover:text-gray-500 transition-colors w-4 text-center"></i> 
+                        <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">RouterOS</span>
                     </a>
                 `;
 
@@ -466,7 +466,7 @@
                                 <i class="fa-solid fa-file-zipper mr-3 text-gray-400 w-4 text-center"></i> Netinstall:
                             </span>
                             <div class="pl-7 space-y-2">
-                                <a href="${netinstallUrl}" class="block text-base text-gray-600 hover:text-black hover:underline font-mono">Win64</a>
+                                <a href="${netinstallUrl}" class="inline-block text-base text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors font-mono">Win64</a>
                             </div>
                         </div>`;
                 }
@@ -477,7 +477,7 @@
                                 <i class="fa-solid fa-wifi mr-3 text-gray-400 w-4 text-center"></i> Ax5 & Ax6 wifi:
                             </span>
                             <div class="pl-7 space-y-2">
-                                <a href="${wifiRUrl}" class="block text-sm text-gray-600 hover:text-black hover:underline font-mono">wifi-qcom-R</a>
+                                <a href="${wifiRUrl}" class="inline-block text-sm text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors font-mono">wifi-qcom-R</a>
                             </div>
                         </div>`;
                 }
@@ -488,7 +488,7 @@
                                 <i class="fa-solid fa-key mr-3 text-gray-400 w-4 text-center"></i> License:
                             </span>
                             <div class="pl-7 space-y-2">
-                                <button onclick="openGenerator()" class="block text-sm text-gray-600 hover:text-black hover:underline text-left font-mono">Key Generator (Online)</button>
+                                <button onclick="openGenerator()" class="inline-block text-sm text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors text-left font-mono">Key Generator (Online)</button>
                             </div>
                         </div>`;
 
@@ -509,11 +509,11 @@
 
                 for (let i = 1; i < lines.length; i++) {
                     const [arch, name, size] = lines[i].trim().split(',');
-                    if (arch === 'arm64' && name && size) {
+                if (arch === 'arm64' && name && size) {
                         extHtml += `
-                            <a href="${BASE_URL}/${version}/${name}-${version}-${arch}.npk" class="flex items-center text-base text-gray-700 hover:text-black hover:underline group truncate font-mono" title="${name} (${formatBytes(parseInt(size))})">
-                                <i class="fa-solid fa-box-open mr-3 text-gray-400 group-hover:text-black transition-colors w-4 text-center"></i> 
-                                ${name}
+                            <a href="${BASE_URL}/${version}/${name}-${version}-${arch}.npk" class="flex items-center text-base group truncate font-mono w-fit" title="${name} (${formatBytes(parseInt(size))})">
+                              <i class="fa-solid fa-box-open mr-3 text-black group-hover:text-gray-500 transition-colors w-4 text-center"></i> 
+                              <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">${name}</span>
                             </a>
                         `;
                     }
