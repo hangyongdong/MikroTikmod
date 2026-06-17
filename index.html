@@ -4,192 +4,186 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RouterOS 固件中心</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M 50,8 L 85,28 L 85,72 L 50,92 L 15,72 L 15,28 Z' fill='%232563eb' stroke='%232563eb' stroke-width='8' stroke-linejoin='round'/><path d='M 25,64 L 25,36 L 50,22 L 75,36 L 75,64 M 25,36 L 50,50 L 75,36 M 50,50 L 50,78' fill='none' stroke='white' stroke-width='11' stroke-linecap='round' stroke-linejoin='round'/></svg>">
-    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- 🌟 修改点：Favicon 统一为纯正黑白工业风 (#111) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M 50,8 L 85,28 L 85,72 L 50,92 L 15,72 L 15,28 Z' fill='%23111111' stroke='%23111111' stroke-width='8' stroke-linejoin='round'/><path d='M 25,64 L 25,36 L 50,22 L 75,36 L 75,64 M 25,36 L 50,50 L 75,36 M 50,50 L 50,78' fill='none' stroke='white' stroke-width='11' stroke-linecap='round' stroke-linejoin='round'/></svg>">
     <style>
-        /* 1. 引入在线分片托管的更纱黑体 (基于思源黑体与 Iosevka 缝合) */
-        @import url("https://fontsapi.zeoseven.com/161/main/result.css");
-
-        body { 
-            background-color: #f3f4f6; 
-            
-            /* 2. 优先使用更纱黑体（Sarasa Gothic SC） */
-            /* 如果没加载完，依次降级使用本地的 Consolas, 微软雅黑 或是系统默认等宽 */
-            font-family: "Sarasa Gothic SC", Consolas, Monaco, "Microsoft YaHei", monospace; 
-        }
-        
-        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-        .hover-card:hover { transform: translateY(-2px); transition: all 0.2s ease-in-out; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        body { background-color: #fafafa; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #111; }
+        .btn-active { border-color: #111 !important; color: #111 !important; font-weight: 600; box-shadow: inset 0 0 0 1px #111; }
+        .btn-inactive { border-color: #e5e7eb; color: #4b5563; }
+        .btn-inactive:hover { border-color: #9ca3af; color: #111; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        select { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
     </style>
 </head>
-<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+<body class="antialiased min-h-screen flex flex-col">
 
-    <!-- 顶部导航栏 -->
-    <nav class="bg-blue-600 text-white shadow-lg">
-        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-            <div class="text-xl font-bold tracking-wider flex items-center">
-                <i class="fa-solid fa-router mr-3 text-2xl"></i> RouterOS 固件中心
-            </div>
-            <div class="text-sm bg-blue-700 px-3 py-1 rounded-full border border-blue-500 shadow-inner hidden sm:block">
-                <i class="fa-solid fa-server mr-1"></i> Tencent EdgeOne 全球加速
-            </div>
+    <header class="w-full bg-white border-b border-gray-200 py-6">
+        <div class="max-w-7xl mx-auto px-6 flex justify-between items-end">
+            <h1 class="text-4xl font-bold tracking-tight font-mono">RouterOS</h1>
+            <div class="text-xs text-gray-400 font-mono tracking-widest uppercase">Custom Mirror Node</div>
         </div>
-    </nav>
+    </header>
 
-    <!-- 主要内容区 -->
-    <main class="flex-grow max-w-6xl mx-auto w-full px-4 py-8">
+    <main class="flex-grow max-w-7xl mx-auto w-full px-6 py-10">
         
-        <!-- 导航控制面板 -->
-        <div class="glass-panel rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <div>
-                    <h1 class="text-2xl font-extrabold text-gray-900 mb-1">固件版本库</h1>
-                    <p class="text-gray-500 text-sm"><i class="fa-regular fa-clock mr-1"></i> 本站所有资源，仅用作交流学习</p>
+        <div class="flex flex-wrap lg:flex-nowrap gap-8 mb-10 items-end">
+            <div class="flex-grow">
+                <label class="block text-xs font-mono text-gray-500 mb-3 tracking-widest">Architecture:</label>
+                <div class="flex flex-wrap gap-2">
+                    <button class="px-5 py-2 text-sm border bg-white btn-active cursor-default">ARM64</button>
+                    <button class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed">ARM</button>
+                    <button class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed">MIPSBE</button>
+                    <button class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed">X86</button>
                 </div>
             </div>
 
-            <!-- 频道标签页导航 -->
-            <div class="flex flex-wrap md:flex-nowrap p-1 mb-6 bg-gray-100/80 rounded-xl border border-gray-200 shadow-inner gap-1">
-                <button onclick="switchTab('long-term')" id="tab-long-term" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 transition-all">LongTerm</button>
-                <button onclick="switchTab('stable')" id="tab-stable" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-bold bg-white shadow-sm text-blue-600 border border-gray-200 transition-all">Stable</button>
-                <button onclick="switchTab('testing')" id="tab-testing" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 transition-all">Testing</button>
-                <button onclick="switchTab('development')" id="tab-development" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 transition-all">Development</button>
-                <!-- 算号器切换标签 -->
-                <button onclick="switchTab('generator')" id="tab-generator" class="flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 transition-all">
-                    <i class="fa-solid fa-key mr-1"></i> License
-                </button>
+            <div>
+                <label class="block text-xs font-mono text-gray-500 mb-3 tracking-widest">Channels:</label>
+                <div class="flex flex-wrap gap-2" id="channel-tabs">
+                    <button onclick="switchTab('long-term')" id="tab-long-term" class="px-5 py-2 text-sm border bg-white btn-inactive transition-colors">LongTerm</button>
+                    <button onclick="switchTab('stable')" id="tab-stable" class="px-5 py-2 text-sm border bg-white btn-active transition-colors">Stable</button>
+                    <button onclick="switchTab('testing')" id="tab-testing" class="px-5 py-2 text-sm border bg-white btn-inactive transition-colors">Testing</button>
+                    <button onclick="switchTab('development')" id="tab-development" class="px-5 py-2 text-sm border bg-white btn-inactive transition-colors">Development</button>
+                </div>
             </div>
 
-            <!-- 下拉版本选择器 -->
-            <div id="selector-wrapper" class="flex items-center gap-3 w-full border-t border-gray-100 pt-5">
-                <label for="version-selector" class="text-gray-600 font-bold text-sm whitespace-nowrap">选择版本 (Version)</label>
-                <div class="relative w-full md:w-64">
-                    <select id="version-selector" class="block appearance-none w-full bg-white border border-gray-300 hover:border-gray-400 px-4 py-2 pr-10 rounded-lg shadow-sm leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700 font-bold cursor-pointer transition">
-                        <option>正在获取版本列表...</option>
+            <div class="w-48 relative">
+                <label class="block text-xs font-mono text-gray-500 mb-3 tracking-widest">Version:</label>
+                <div class="relative">
+                    <select id="version-selector" class="w-full border border-gray-300 bg-white px-4 py-2 text-sm focus:outline-none focus:border-black cursor-pointer hover:border-gray-400 transition-colors font-mono">
+                        <option>Loading...</option>
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                        <i class="fa-solid fa-chevron-down"></i>
+                        <i class="fa-solid fa-chevron-down text-xs"></i>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- ========================================================= -->
-        <!-- 🌟 BOX A -->
-        <!-- ========================================================= -->
-        <div id="firmware-section">
-            <!-- 1. 更新日志 -->
-            <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-green-500">更新日志 (Changelog)</h2>
-            <div class="mb-8 bg-gray-50 border border-gray-200 rounded-lg shadow-inner relative">
-                <div id="changelog-container" class="p-4 h-48 overflow-y-auto custom-scrollbar text-sm text-gray-700 font-mono whitespace-pre-wrap leading-relaxed"></div>
-                <div class="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none rounded-b-lg"></div>
+        <div class="bg-gray-100 border border-gray-200 p-8 min-h-[400px]">
+            
+            <div id="info-bar" class="bg-gray-200 text-gray-700 text-sm py-3 px-4 mb-8 hidden font-mono">
+                Latest <span id="info-channel" class="font-bold"></span> release <span id="info-version" class="font-bold"></span> download files for <span class="font-bold">ARM64</span> devices.
             </div>
 
-            <!-- 2. 主系统包下载 -->
-            <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-blue-500">系统包 (System Package)</h2>
-            <div id="main-package-container" class="mb-8"></div>
+            <div id="loading-state" class="hidden flex-col items-center justify-center py-20 text-gray-400">
+                <i class="fa-solid fa-circle-notch fa-spin text-4xl mb-4"></i>
+                <p class="font-mono text-sm tracking-widest">LOADING PACKAGES...</p>
+            </div>
 
-            <!-- 3. 扩展包列表 -->
-            <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-indigo-500">扩展包 (Extra Packages)</h2>
-            <div id="packages-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[150px] mb-8"></div>
+            <div id="empty-state" class="hidden flex-col items-center justify-center py-16">
+                <i class="fa-solid fa-microchip text-5xl text-gray-800 mb-6"></i>
+                <h2 class="text-xl font-bold mb-2 font-mono">No packages available</h2>
+                <p class="text-sm text-gray-600 text-center max-w-md font-mono leading-relaxed">
+                    There are no compiled packages for this version in the selected channel. <br>
+                    Please switch to another version or channel.
+                </p>
+            </div>
 
-            <!-- 4. 额外工具与驱动下载 -->
-            <h2 class="text-lg font-bold text-gray-700 mb-4 pl-2 border-l-4 border-orange-500">额外工具与驱动 (Extra Tools)</h2>
-            <div id="extra-package-container" class="mb-8"></div>
-        </div>
-
-        <!-- ========================================================= -->
-        <!-- 🌟 BOX B -->
-        <!-- ========================================================= -->
-        <div id="generator-section" class="hidden min-h-[500px] max-w-md mx-auto">
-            <div class="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm hover-card">
-                <h3 class="text-xl font-extrabold text-blue-600 text-center mb-6">在线系统授权生成</h3>
+            <div id="data-grid" class="grid grid-cols-1 md:grid-cols-3 gap-12 hidden">
                 
-                <div class="space-y-4">
-                    <!-- 模式 & 级别级联选择 -->
-                    <div class="flex gap-3">
-                        <select id="gen-mode" class="block w-full bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="licgenros" selected>RouterOS</option>
-                            <option value="licgenchr">RouterCHR</option>
-                        </select>
-                        <select id="gen-level" class="block w-full bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500">
-                            <!-- 动态加载 -->
-                        </select>
-                    </div>
-
-                    <!-- SWID 输入框 -->
-                    <div>
-                        <input id="gen-swid" type="text" placeholder="输入 Software ID / System ID..." class="block w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium">
-                    </div>
-
-                    <!-- 验证码 -->
-                    <div class="flex gap-3 items-center">
-                        <input id="gen-captcha" type="text" placeholder="输入验证码..." class="block w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium" autocomplete="off">
-                        <img src="" id="gen-captcha-img" class="h-11 border border-gray-300 rounded-lg cursor-pointer bg-slate-50" onclick="refreshGenCaptcha()" title="点击刷新">
-                    </div>
-
-                    <!-- 错误展示文本 -->
-                    <div id="gen-error" class="hidden text-red-500 text-xs text-center font-medium"></div>
-
-                    <!-- 算号主按钮 -->
-                    <button onclick="generateLicense()" id="btn-submit-gen" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow transition flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span id="btn-text">生成系统授权</span>
-                    <i id="btn-spinner" class="hidden fa-solid fa-spinner fa-spin ml-2"></i>
-                    </button>
+                <div>
+                    <h3 class="text-xs font-bold text-gray-800 font-mono tracking-widest mb-6 uppercase">System Package</h3>
+                    <div id="col-system" class="space-y-4"></div>
                 </div>
 
-                <!-- 结果展示框 -->
-                <div id="gen-result-container" class="hidden mt-6 animate-fade-in">
-                    <pre id="gen-lic-text" class="bg-slate-900 text-sky-400 p-4 rounded-lg text-xs font-mono border border-sky-500/30 whitespace-pre-wrap word-break-all max-h-48 overflow-y-auto custom-scrollbar"></pre>
-                    <button onclick="copyGeneratedLicense()" id="btn-copy-gen" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg mt-3 transition text-sm shadow">
-                        复制到剪贴板
-                    </button>
+                <div>
+                    <h3 class="text-xs font-bold text-gray-800 font-mono tracking-widest mb-6 uppercase">Extra Packages</h3>
+                    <div id="col-extra" class="grid grid-cols-2 gap-y-4 gap-x-6"></div>
+                    <div class="mt-6 pt-4 border-t border-gray-200">
+                        <a href="https://help.mikrotik.com/docs/display/ROS/Packages" target="_blank" class="text-sm text-gray-600 hover:text-black hover:underline transition-colors flex items-center font-mono">
+                            <i class="fa-solid fa-arrow-right mr-2 text-xs"></i> More about packages
+                        </a>
+                    </div>
                 </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-gray-800 font-mono tracking-widest mb-6 uppercase">More & Tools</h3>
+                    <div id="col-more" class="space-y-5"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="mt-8 border-t border-b border-gray-200">
+            <button onclick="toggleChangelog()" class="w-full py-6 flex items-center justify-between text-left focus:outline-none hover:bg-gray-50 transition-colors">
+                <span class="text-sm font-bold text-gray-800 font-mono tracking-widest uppercase">
+                    <i id="cl-icon" class="fa-solid fa-chevron-right mr-3 text-xs w-3"></i> Changelog
+                </span>
+            </button>
+            <div id="changelog-wrapper" class="hidden pb-8 px-6">
+                <pre id="changelog-content" class="text-sm text-gray-600 font-mono whitespace-pre-wrap leading-relaxed custom-scrollbar max-h-96 overflow-y-auto"></pre>
             </div>
         </div>
 
     </main>
 
-    <!-- 页脚 -->
-    <footer class="bg-gray-800 text-gray-400 py-6 text-center text-sm mt-auto">
-        <p>© 2026 RouterOS Custom Mirror. Powered by 红尘有爱.</p>
-        
-        <!-- 访客统计组件 -->
-        <div class="mt-2.5 text-xs text-gray-500 flex justify-center items-center gap-3">
-            <span id="busuanzi_container_site_uv" style="display:none" title="总独立访客数 (UV)">
-                <i class="fa-solid fa-user-astronaut mr-1"></i>访客: <span id="busuanzi_value_site_uv" class="font-mono text-gray-300 font-bold ml-0.5"></span>
-            </span>
-            <span class="text-gray-600 text-[10px]">•</span>
-            <span id="busuanzi_container_site_pv" style="display:none" title="总页面浏览量 (PV)">
-                <i class="fa-solid fa-eye mr-1"></i>浏览: <span id="busuanzi_value_site_pv" class="font-mono text-gray-300 font-bold ml-0.5"></span>
-            </span>
+    <!-- 算号器弹窗 (极简极客风重塑) -->
+    <div id="generator-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white border border-gray-300 shadow-2xl w-full max-w-sm flex flex-col relative transform scale-95 transition-transform duration-300 rounded-sm" id="generator-card">
+            
+            <div class="flex justify-between items-center p-5 border-b border-gray-200 bg-gray-50">
+                <h3 class="text-sm font-bold font-mono tracking-widest text-gray-800 uppercase"><i class="fa-solid fa-key mr-2"></i>License Generator</h3>
+                <button onclick="closeGenerator()" class="text-gray-400 hover:text-black transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                <div class="flex gap-3">
+                    <select id="gen-mode" class="w-full border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:border-black cursor-pointer font-mono text-gray-700">
+                        <option value="licgenros" selected>RouterOS</option>
+                        <option value="licgenchr">RouterCHR</option>
+                    </select>
+                    <select id="gen-level" class="w-full border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:border-black cursor-pointer font-mono text-gray-700"></select>
+                </div>
+
+                <input id="gen-swid" type="text" placeholder="Software ID / System ID..." class="w-full border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:border-black font-mono text-gray-700">
+                
+                <div class="flex gap-3 items-center">
+                    <input id="gen-captcha" type="text" placeholder="Captcha..." class="w-full border border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:border-black font-mono text-gray-700" autocomplete="off">
+                    <img src="" id="gen-captcha-img" class="h-9 border border-gray-300 cursor-pointer hover:border-gray-500 transition-colors" onclick="refreshGenCaptcha()" title="Click to refresh">
+                </div>
+
+                <div id="gen-error" class="hidden text-red-600 text-xs font-mono font-bold text-center border border-red-200 bg-red-50 py-2"></div>
+
+                <button onclick="generateLicense()" id="btn-submit-gen" class="w-full bg-gray-800 text-white hover:bg-black py-2.5 text-sm font-bold font-mono transition-colors flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span id="btn-text">GENERATE KEY</span>
+                    <i id="btn-spinner" class="hidden fa-solid fa-spinner fa-spin ml-2"></i>
+                </button>
+
+                <div id="gen-result-container" class="hidden mt-4 pt-4 border-t border-gray-200">
+                    <pre id="gen-lic-text" class="bg-gray-100 p-3 text-xs font-mono text-gray-800 border border-gray-200 whitespace-pre-wrap word-break-all max-h-32 overflow-y-auto custom-scrollbar"></pre>
+                    <button onclick="copyGeneratedLicense()" id="btn-copy-gen" class="w-full mt-3 bg-white border border-gray-300 text-gray-700 hover:border-black hover:text-black py-2 text-sm font-bold font-mono transition-colors">
+                        COPY TO CLIPBOARD
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚与统计 -->
+    <footer class="bg-white border-t border-gray-200 py-8 text-center mt-auto">
+        <p class="text-xs text-gray-400 font-mono tracking-widest uppercase">© 2026 RouterOS Custom Mirror. Powered by 红尘有爱.</p>
+        <div class="mt-3 text-xs text-gray-400 font-mono flex justify-center items-center gap-3">
+            <span id="busuanzi_container_site_uv" style="display:none"><i class="fa-solid fa-user-astronaut mr-1"></i>UV: <span id="busuanzi_value_site_uv" class="text-gray-600 font-bold"></span></span>
+            <span>|</span>
+            <span id="busuanzi_container_site_pv" style="display:none"><i class="fa-solid fa-eye mr-1"></i>PV: <span id="busuanzi_value_site_pv" class="text-gray-600 font-bold"></span></span>
         </div>
     </footer>
 
     <!-- 核心逻辑脚本 -->
     <script>
-        // 智能域名深度路径自适应
-        const DOMAIN_ROOT = window.location.origin;
         const BASE_URL = window.location.pathname.includes('/routeros') ? '/routeros' : '';
-        
         let categorizedVersions = { 'stable': [], 'long-term': [], 'testing': [], 'development': [] };
         let latestInfo = { 'stable': '', 'long-term': '', 'testing': '', 'development': '' };
         let currentTab = 'stable';
 
         function formatBytes(bytes) {
-            if (!bytes || bytes === 0) return '未知';
+            if (!bytes || bytes === 0) return '';
             return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
         }
 
@@ -202,7 +196,6 @@
 
         async function initPage() {
             const channels = ['stable', 'long-term', 'testing', 'development'];
-            
             try {
                 await Promise.all(channels.map(async (channel) => {
                     try {
@@ -225,66 +218,37 @@
                         categorizedVersions = data;
                     }
                 }
-
                 document.getElementById('version-selector').addEventListener('change', (e) => loadVersionData(e.target.value));
                 
-                // 初始化算号器表单级联
                 initGeneratorForm();
-                bindEnterKey(); // 🌟 激活回车监听
+                bindEnterKey();
                 
                 switchTab('stable');
-
             } catch (error) {
                 console.error(error);
-                document.getElementById('version-selector').innerHTML = '<option>数据加载失败</option>';
+                document.getElementById('version-selector').innerHTML = '<option>Load Failed</option>';
             }
         }
 
         function switchTab(tabId) {
             currentTab = tabId;
-            
-            const allTabs = ['stable', 'long-term', 'testing', 'development', 'generator'];
-            allTabs.forEach(t => {
+            ['stable', 'long-term', 'testing', 'development'].forEach(t => {
                 const btn = document.getElementById(`tab-${t}`);
                 if (btn) {
-                    if (t === tabId) btn.className = "flex-1 py-2.5 px-3 rounded-lg text-sm font-bold bg-white shadow-sm text-blue-600 border border-gray-200 transition-all";
-                    else btn.className = "flex-1 py-2.5 px-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-200/50 border border-transparent transition-all";
+                    btn.className = (t === tabId) 
+                        ? "px-5 py-2 text-sm border bg-white btn-active transition-colors"
+                        : "px-5 py-2 text-sm border bg-white btn-inactive transition-colors";
                 }
             });
 
-            const firmwareSection = document.getElementById('firmware-section');
-            const generatorSection = document.getElementById('generator-section');
-            const selectorWrapper = document.getElementById('selector-wrapper');
-
-            // 如果点击的是“在线授权算号”
-            if (tabId === 'generator') {
-                if (firmwareSection) firmwareSection.classList.add('hidden');
-                if (selectorWrapper) selectorWrapper.classList.add('hidden');
-                if (generatorSection) {
-                    generatorSection.classList.remove('hidden');
-                    refreshGenCaptcha(); // 点击时，立刻拉取一次验证码
-                }
-                return;
-            }
-
-            // 点击其他常规固件栏目
-            if (firmwareSection) firmwareSection.classList.remove('hidden');
-            if (selectorWrapper) selectorWrapper.classList.remove('hidden');
-            if (generatorSection) generatorSection.classList.add('hidden');
-
             const selector = document.getElementById('version-selector');
-            if (!selector) return;
             selector.innerHTML = '';
-            
             const targetVersions = categorizedVersions[tabId] || [];
 
             if (targetVersions.length === 0) {
-                selector.innerHTML = `<option value="">该频道暂无可用固件</option>`;
+                selector.innerHTML = `<option value="">No versions</option>`;
                 selector.disabled = true;
-                if (document.getElementById('main-package-container')) document.getElementById('main-package-container').innerHTML = `<div class="text-gray-500 p-4 border border-dashed rounded-lg text-center">无版本数据</div>`;
-                if (document.getElementById('changelog-container')) document.getElementById('changelog-container').textContent = '无数据';
-                if (document.getElementById('extra-package-container')) document.getElementById('extra-package-container').innerHTML = '';
-                if (document.getElementById('packages-grid')) document.getElementById('packages-grid').innerHTML = '';
+                showState('empty');
                 return;
             }
 
@@ -294,9 +258,8 @@
             targetVersions.forEach(v => {
                 const opt = document.createElement('option');
                 opt.value = v;
-                let label = `v${v}`;
+                let label = v;
                 if (v === latestInfo[tabId]) {
-                    label += ` (⭐Latest)`;
                     opt.selected = true;
                     firstToLoad = v; 
                 }
@@ -307,134 +270,56 @@
             loadVersionData(firstToLoad);
         }
 
-        async function loadVersionData(version) {
-            if (!version || currentTab === 'generator') return;
+        function showState(state) {
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('data-grid').classList.add('hidden');
+            document.getElementById('info-bar').classList.add('hidden');
 
-            const mainContainer = document.getElementById('main-package-container');
-            const changelogContainer = document.getElementById('changelog-container');
-            const extraContainer = document.getElementById('extra-package-container');
-            const gridContainer = document.getElementById('packages-grid');
+            if (state === 'loading') document.getElementById('loading-state').classList.remove('hidden');
+            else if (state === 'empty') document.getElementById('empty-state').classList.remove('hidden');
+            else if (state === 'data') {
+                document.getElementById('data-grid').classList.remove('hidden');
+                document.getElementById('info-bar').classList.remove('hidden');
+            }
+        }
 
-            if (mainContainer) mainContainer.innerHTML = `<div class="animate-pulse bg-gray-200 h-20 rounded-lg"></div>`;
-            if (changelogContainer) changelogContainer.innerHTML = `<div class="text-gray-400 text-center mt-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>拉取日志中...</div>`;
-            if (extraContainer) extraContainer.innerHTML = `<div class="animate-pulse bg-gray-200 h-20 rounded-lg"></div>`;
-            if (gridContainer) gridContainer.innerHTML = Array(3).fill(`<div class="animate-pulse bg-gray-200 h-28 rounded-lg"></div>`).join('');
-
-            try {
-                const mainArch = 'arm64'; 
-                
-                if (mainContainer) {
-                    mainContainer.innerHTML = `
-                        <div class="glass-panel rounded-lg border border-blue-200 p-4 flex justify-between items-center hover-card bg-blue-50/30">
-                            <div class="flex items-center">
-                                <i class="fa-solid fa-cube text-3xl text-blue-500 mr-4"></i>
-                                <div>
-                                    <h3 class="font-bold text-gray-800 text-lg">routeros-${version}-${mainArch}.npk</h3>
-                                    <p class="text-xs text-gray-500 mt-1">系统机型主包 | 架构: ${mainArch.toUpperCase()}</p>
-                                </div>
-                            </div>
-                            <a href="${BASE_URL}/${version}/routeros-${version}-${mainArch}.npk" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg shadow transition text-sm font-medium flex items-center">
-                                <i class="fa-solid fa-download mr-2"></i> 下载
-                            </a>
-                        </div>
-                    `;
-                }
-
-                if (extraContainer) {
-                    const netinstallUrl = `${BASE_URL}/extra/${version}/netinstall-${version}.zip`;
-                    const wifiRUrl = `${BASE_URL}/extra/${version}/wifi-qcom-${version}-${mainArch}-R.npk`;
-
-                    const [hasNetinstall, hasWifiR] = await Promise.all([
-                        checkFileExists(netinstallUrl),
-                        checkFileExists(wifiRUrl)
-                    ]);
-
-                    let extraHtml = '';
-                    if (hasNetinstall) {
-                        extraHtml += `
-                            <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-col justify-between hover-card shadow-sm">
-                                <div class="flex items-start mb-3">
-                                    <i class="fa-solid fa-tools text-2xl text-orange-500 mr-3 mt-1"></i>
-                                    <div class="overflow-hidden">
-                                        <h3 class="font-bold text-gray-700 truncate">netinstall-${version}.zip</h3>
-                                        <p class="text-xs text-gray-400 mt-1">官方救砖和刷机工具 (patched)</p>
-                                    </div>
-                                </div>
-                                <a href="${netinstallUrl}" class="mt-2 text-center bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-600 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center">
-                                    <i class="fa-solid fa-download mr-2"></i> 下载工具
-                                </a>
-                            </div>`;
-                    }
-
-                    if (hasWifiR) {
-                        extraHtml += `
-                            <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-col justify-between hover-card shadow-sm">
-                                <div class="flex items-start mb-3">
-                                    <i class="fa-solid fa-wifi text-2xl text-teal-500 mr-3 mt-1"></i>
-                                    <div class="overflow-hidden">
-                                        <h3 class="font-bold text-gray-700 truncate">wifi-qcom-${version}-${mainArch}-R.npk</h3>
-                                        <p class="text-xs text-gray-400 mt-1">适用红米ax5和ax6的wifi包</p>
-                                    </div>
-                                </div>
-                                <a href="${wifiRUrl}" class="mt-2 text-center bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-600 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center">
-                                    <i class="fa-solid fa-download mr-2"></i> 下载驱动
-                                </a>
-                            </div>`;
-                    }
-
-                    if (extraHtml === '') {
-                        extraContainer.innerHTML = `<p class="text-gray-500 p-4 border border-dashed rounded-lg text-center col-span-2">该版本未提供额外的工具或特殊驱动。</p>`;
-                    } else {
-                        extraContainer.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">${extraHtml}</div>`;
-                    }
-                }
-
-                if (changelogContainer) {
-                    fetch(`${BASE_URL}/${version}/CHANGELOG?t=${new Date().getTime()}`)
-                        .then(res => res.ok ? res.text() : '未提供更新日志')
-                        .then(text => changelogContainer.textContent = text || '当前版本无详细说明')
-                        .catch(() => changelogContainer.innerHTML = '<span class="text-red-400">拉取失败</span>');
-                }
-
-                if (gridContainer) {
-                    const csvRes = await fetch(`${BASE_URL}/${version}/packages.csv?t=${new Date().getTime()}`);
-                    if (!csvRes.ok) throw new Error(`无法获取 packages.csv`);
-                    
-                    const lines = (await csvRes.text()).split('\n');
-                    let htmlContent = '';
-
-                    for (let i = 1; i < lines.length; i++) {
-                        const [arch, name, size] = lines[i].trim().split(',');
-                        if (arch === 'arm64' && name && size) {
-                            htmlContent += `
-                                <div class="bg-white rounded-lg border border-gray-200 p-4 flex flex-col justify-between hover-card shadow-sm">
-                                    <div class="flex items-start mb-3">
-                                        <i class="fa-solid fa-box-open text-2xl text-indigo-400 mr-3 mt-1"></i>
-                                        <div class="overflow-hidden">
-                                            <h3 class="font-bold text-gray-700 truncate">${name}</h3>
-                                            <p class="text-xs text-gray-400 mt-1 uppercase font-mono">${arch} • ${formatBytes(parseInt(size))}</p>
-                                        </div>
-                                    </div>
-                                    <a href="${BASE_URL}/${version}/${name}-${version}-${arch}.npk" class="mt-2 text-center bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center">
-                                        <i class="fa-solid fa-cloud-arrow-down mr-2"></i> 获取组件
-                                    </a>
-                                </div>
-                            `;
-                        }
-                    }
-                    gridContainer.innerHTML = htmlContent || `<p class="text-gray-500 p-4 border border-dashed rounded-lg text-center col-span-3">该版本下暂无扩展包。</p>`;
-                }
-
-            } catch (error) {
-                console.error(error);
-                if (mainContainer) mainContainer.innerHTML = `<div class="text-red-500 p-4 border border-red-200 rounded-lg bg-red-50">主包数据加载失败。</div>`;
-                if (gridContainer) gridContainer.innerHTML = `<div class="text-red-500 p-4 border border-red-200 rounded-lg bg-red-50 col-span-3">无法读取扩展包列表。</div>`;
+        function toggleChangelog() {
+            const wrapper = document.getElementById('changelog-wrapper');
+            const icon = document.getElementById('cl-icon');
+            if (wrapper.classList.contains('hidden')) {
+                wrapper.classList.remove('hidden');
+                icon.classList.remove('fa-chevron-right');
+                icon.classList.add('fa-chevron-down');
+            } else {
+                wrapper.classList.add('hidden');
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-right');
             }
         }
 
         // ==========================================
-        // 在线算号器的完整原生 JavaScript 控制逻辑
+        // 原生授权算号器控制逻辑
         // ==========================================
+        function openGenerator() {
+            const modal = document.getElementById('generator-modal');
+            const card = document.getElementById('generator-card');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                card.classList.remove('scale-95');
+            }, 10);
+            refreshGenCaptcha();
+        }
+
+        function closeGenerator() {
+            const modal = document.getElementById('generator-modal');
+            const card = document.getElementById('generator-card');
+            modal.classList.add('opacity-0');
+            card.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
         function initGeneratorForm() {
             const modeSelect = document.getElementById('gen-mode');
             if (modeSelect) {
@@ -447,32 +332,17 @@
             const mode = document.getElementById('gen-mode').value;
             const levelSelect = document.getElementById('gen-level');
             if (!levelSelect) return;
-            
             levelSelect.innerHTML = '';
-            let options = [];
-            if (mode === 'licgenros') {
-                options = [
-                    { text: 'Level 6', value: '6' },
-                    { text: 'Level 5', value: '5' },
-                    { text: 'Level 4', value: '4' }
-                ];
-            } else {
-                options = [
-                    { text: 'P-Unlimited', value: '3' },
-                    { text: 'P10', value: '2' },
-                    { text: 'P1', value: '1' }
-                ];
-            }
-            options.forEach(opt => {
-                levelSelect.innerHTML += `<option value="${opt.value}">${opt.text}</option>`;
+            let options = (mode === 'licgenros') ? ['6', '5', '4'] : ['P-Unlimited', 'P10', 'P1'];
+            let vals = (mode === 'licgenros') ? ['6', '5', '4'] : ['3', '2', '1'];
+            options.forEach((opt, idx) => {
+                levelSelect.innerHTML += `<option value="${vals[idx]}">${opt}</option>`;
             });
         }
 
         function refreshGenCaptcha() {
             const captchaImg = document.getElementById('gen-captcha-img');
-            if (captchaImg) {
-                captchaImg.src = `/captcha?t=${new Date().getTime()}`;
-            }
+            if (captchaImg) captchaImg.src = `/captcha?t=${new Date().getTime()}`;
         }
 
         async function generateLicense() {
@@ -486,46 +356,40 @@
             const btnSpinner = document.getElementById('btn-spinner');
 
             if (!swid || !captcha) {
-                errBox.innerText = "请输入完整的注册 ID 与验证码！";
+                errBox.innerText = "Error: Input required";
                 errBox.classList.remove('hidden');
                 return;
             }
             errBox.classList.add('hidden');
 
-            // 按钮进入 Loading 状态
-            btnText.innerText = "正在算号...";
+            btnText.innerText = "GENERATING...";
             btnSpinner.classList.remove('hidden');
             document.getElementById('btn-submit-gen').disabled = true;
 
             try {
-                // 向 NPM 反代的 /api/generate 发送 json 数据
                 const response = await fetch(`/api/generate`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ swid, mode, level, captcha })
                 });
-                
                 const data = await response.json();
-                
                 if (response.ok && data.status === 'success') {
                     document.getElementById('gen-lic-text').innerText = data.result;
                     resContainer.classList.remove('hidden');
                 } else {
-                    errBox.innerText = data.message || "请求服务器出错，请稍后重试";
+                    errBox.innerText = data.message || "Server Error";
                     errBox.classList.remove('hidden');
                     resContainer.classList.add('hidden');
-                    refreshGenCaptcha(); // 出错或验证码不对，自动更新一次验证码
+                    refreshGenCaptcha();
                 }
             } catch (e) {
-                console.error(e);
-                errBox.innerText = "网络连接超时，请检查服务是否正常启动";
+                errBox.innerText = "Network Error";
                 errBox.classList.remove('hidden');
             } finally {
-                // 按钮恢复正常
-                btnText.innerText = "生成系统授权";
+                btnText.innerText = "GENERATE KEY";
                 btnSpinner.classList.add('hidden');
                 document.getElementById('btn-submit-gen').disabled = false;
-                document.getElementById('gen-captcha').value = ''; // 校验后清空输入框
+                document.getElementById('gen-captcha').value = '';
             }
         }
 
@@ -533,28 +397,125 @@
             const text = document.getElementById("gen-lic-text").innerText;
             navigator.clipboard.writeText(text).then(() => {
                 const btn = document.getElementById("btn-copy-gen");
-                btn.innerText = "已复制到剪贴板！";
-                setTimeout(() => { btn.innerText = "复制到剪贴板"; }, 2000);
+                btn.innerText = "COPIED!";
+                setTimeout(() => { btn.innerText = "COPY TO CLIPBOARD"; }, 2000);
             });
         }
-        // 支持回车键快捷算号
+
         function bindEnterKey() {
-            const inputs = ['gen-swid', 'gen-captcha'];
-            inputs.forEach(id => {
+            ['gen-swid', 'gen-captcha'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
                     el.addEventListener('keypress', function (e) {
-                        if (e.key === 'Enter') {
-                            e.preventDefault(); // 阻止默认的回车刷新行为
-                            generateLicense();  // 触发算号
-                        }
+                        if (e.key === 'Enter') { e.preventDefault(); generateLicense(); }
                     });
                 }
             });
         }
+
+        // ==========================================
+        // 核心数据渲染逻辑
+        // ==========================================
+        async function loadVersionData(version) {
+            if (!version) { showState('empty'); return; }
+            showState('loading');
+
+            const colSys = document.getElementById('col-system');
+            const colExt = document.getElementById('col-extra');
+            const colMore = document.getElementById('col-more');
+            const clog = document.getElementById('changelog-content');
+
+            document.getElementById('info-channel').innerText = currentTab;
+            document.getElementById('info-version').innerText = "v" + version;
+
+            try {
+                const mainArch = 'arm64'; 
+                
+                // [列1：系统主包]
+                colSys.innerHTML = `
+                    <a href="${BASE_URL}/${version}/routeros-${version}-${mainArch}.npk" class="flex items-center text-sm text-gray-700 hover:text-black hover:underline group font-mono">
+                        <i class="fa-solid fa-cube mr-3 text-gray-400 group-hover:text-black transition-colors w-4 text-center"></i> 
+                        RouterOS
+                    </a>
+                `;
+
+                // [列3：更多工具]
+                const netinstallUrl = `${BASE_URL}/extra/${version}/netinstall-${version}.zip`;
+                const wifiRUrl = `${BASE_URL}/extra/${version}/wifi-qcom-${version}-${mainArch}-R.npk`;
+                const [hasNetinstall, hasWifiR] = await Promise.all([ checkFileExists(netinstallUrl), checkFileExists(wifiRUrl) ]);
+
+                let moreHtml = '';
+                if (hasNetinstall) {
+                    moreHtml += `
+                        <div>
+                            <span class="flex items-center text-sm text-gray-800 mb-2 font-mono">
+                                <i class="fa-solid fa-file-zipper mr-3 text-gray-400 w-4 text-center"></i> Netinstall:
+                            </span>
+                            <div class="pl-7 space-y-2">
+                                <a href="${netinstallUrl}" class="block text-sm text-gray-600 hover:text-black hover:underline font-mono">Windows / CLI (Zip)</a>
+                            </div>
+                        </div>`;
+                }
+                if (hasWifiR) {
+                    moreHtml += `
+                        <div>
+                            <span class="flex items-center text-sm text-gray-800 mb-2 mt-4 font-mono">
+                                <i class="fa-solid fa-wifi mr-3 text-gray-400 w-4 text-center"></i> Legacy Driver:
+                            </span>
+                            <div class="pl-7 space-y-2">
+                                <a href="${wifiRUrl}" class="block text-sm text-gray-600 hover:text-black hover:underline font-mono">wifi-qcom (R version)</a>
+                            </div>
+                        </div>`;
+                }
+                
+                moreHtml += `
+                        <div>
+                            <span class="flex items-center text-sm text-gray-800 mb-2 mt-4 font-mono">
+                                <i class="fa-solid fa-key mr-3 text-gray-400 w-4 text-center"></i> License:
+                            </span>
+                            <div class="pl-7 space-y-2">
+                                <button onclick="openGenerator()" class="block text-sm text-gray-600 hover:text-black hover:underline text-left font-mono">Key Generator (Online)</button>
+                            </div>
+                        </div>`;
+
+                colMore.innerHTML = moreHtml;
+
+                // [更新日志]
+                fetch(`${BASE_URL}/${version}/CHANGELOG?t=${new Date().getTime()}`)
+                    .then(res => res.ok ? res.text() : 'No changelog provided.')
+                    .then(text => clog.textContent = text || 'No detailed info.')
+                    .catch(() => clog.innerHTML = 'Fetch failed.');
+
+                // [列2：扩展包]
+                const csvRes = await fetch(`${BASE_URL}/${version}/packages.csv?t=${new Date().getTime()}`);
+                if (!csvRes.ok) throw new Error(`CSV Missing`);
+                
+                const lines = (await csvRes.text()).split('\n');
+                let extHtml = '';
+
+                for (let i = 1; i < lines.length; i++) {
+                    const [arch, name, size] = lines[i].trim().split(',');
+                    if (arch === 'arm64' && name && size) {
+                        extHtml += `
+                            <a href="${BASE_URL}/${version}/${name}-${version}-${arch}.npk" class="flex items-center text-sm text-gray-700 hover:text-black hover:underline group truncate font-mono" title="${name} (${formatBytes(parseInt(size))})">
+                                <i class="fa-solid fa-box-open mr-3 text-gray-400 group-hover:text-black transition-colors w-4 text-center"></i> 
+                                ${name}
+                            </a>
+                        `;
+                    }
+                }
+                colExt.innerHTML = extHtml || `<p class="text-sm text-gray-400 font-mono col-span-2">No extra packages.</p>`;
+                
+                showState('data');
+
+            } catch (error) {
+                console.error(error);
+                showState('empty');
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', initPage);
     </script>
-    <!-- 🌟 新增： -->
-    <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 </body>
 </html>
