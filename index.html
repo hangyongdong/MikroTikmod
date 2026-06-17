@@ -21,10 +21,24 @@
 </head>
 <body class="antialiased min-h-screen flex flex-col">
 
+<!-- 顶部占位/导航 -->
     <header class="w-full bg-white border-b border-gray-200 py-6">
-        <div class="max-w-7xl mx-auto px-6 flex justify-between items-end">
-            <h1 class="text-4xl font-bold tracking-tight font-mono">RouterOS</h1>
-            <div class="text-xs text-gray-400 font-mono tracking-widest uppercase">Custom Mirror Node</div>
+        <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 sm:gap-0">
+            
+            <!-- 🌟 【左边】：品牌区 (主标题 + 右下角副标题) -->
+            <div class="flex items-baseline gap-3">
+                <h1 class="text-4xl font-bold tracking-tight font-mono leading-none">RouterOS</h1>
+                <!-- 紧贴在主标题右下角的副标题 -->
+                <div class="text-[11px] text-gray-400 font-mono tracking-widest uppercase mb-0.5">Custom Mirror Node</div>
+            </div>
+
+            <!-- 🌟 【右边】：声明区 (免责声明) -->
+            <div>
+                <div class="text-[10px] font-mono font-bold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-sm uppercase tracking-wider" title="本站资源仅限交流学习">
+                    For Educational Purposes Only
+                </div>
+            </div>
+
         </div>
     </header>
 
