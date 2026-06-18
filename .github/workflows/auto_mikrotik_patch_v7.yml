@@ -21,7 +21,6 @@ on:
         options:
           - stable
           - long-term
-          - testing
           - development
         default: 'stable'
 
@@ -66,7 +65,7 @@ jobs:
           echo ">>> 开启自动巡检模式..."
           JSON_ARRAY="[]"
           
-          for channel in stable long-term testing development; do
+          for channel in stable long-term development; do
               echo ">>> 正在检查频道: $channel"
               
               # 官方依然用 curl 拉取（官方服务器不会拦截 GitHub）
@@ -398,13 +397,19 @@ jobs:
           import json, subprocess, re, sys, os
           version_to_add = sys.argv[1]
           channel_to_add = sys.argv[2]
-          db = {"stable": [], "long-term": [], "testing": [], "development": []}
+          
+          # 🌟 1. 移除 testing 频道
+          db = {"stable": [], "long-term": [], "development": []}
           
           try:
               with open('./old_versions.json', 'r') as f:
                   data = json.load(f)
               if isinstance(data, dict):
-                  for k in db.keys(): db[k] = data.get(k, [])
+                  for k in db.keys(): 
+                      db[k] = data.get(k, [])
+                  # 🌟 向下兼容：把旧版 JSON 里 testing 中的 rc 版本迁移到 development 中
+                  if "testing" in data and isinstance(data["testing"], list):
+                      db["development"].extend(data["testing"])
           except Exception: pass
           
           remote_dirs = os.environ.get("REMOTE_DIRS", "").split()
@@ -412,8 +417,8 @@ jobs:
               v = v.strip()
               if not v: continue
               if not any(v in db[c] for c in db.keys()):
-                  if "rc" in v: db["testing"].append(v)
-                  elif "beta" in v or "alpha" in v: db["development"].append(v)
+                  # 🌟 2. 将 rc、beta、alpha 统一归入 development
+                  if "rc" in v or "beta" in v or "alpha" in v: db["development"].append(v)
                   elif v in ["7.20.8", "7.21.4"]: db["long-term"].append(v)
                   else: db["stable"].append(v)
                   
@@ -430,8 +435,11 @@ jobs:
 
           for k in db.keys(): db[k] = sort_versions(db[k])
 
-          # 1. Testing 和 Development: 只保留最新 1 个版本
-          db["testing"] = db["testing"][:1]
+          # ==========================================
+          # 🌟 版本保留策略 (Retention Policy)
+          # ==========================================
+          
+          # 1. Development: 仅保留绝对最新的 1 个版本 (含 rc/beta/alpha)
           db["development"] = db["development"][:1]
 
           # 2. Stable: 保留最近两个大版本 (提取 7.x 前缀进行排序)
@@ -455,8 +463,11 @@ jobs:
 
           with open('./versions.json', 'w') as f: json.dump(db, f, indent=2)
 
-
-          keep_set = set(db["stable"] + db["long-term"] + db["testing"] + db["development"])
+          # ==========================================
+          # 🌟 生成待删除的垃圾文件列表
+          # ==========================================
+          # 从白名单中去除了 testing
+          keep_set = set(db["stable"] + db["long-term"] + db["development"])
           keep_set.add(version_to_add) # 强制保护当前编译版本
           
           to_delete = [v for v in remote_dirs if v.strip() and v.strip() not in keep_set]
