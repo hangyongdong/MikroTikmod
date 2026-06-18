@@ -4,19 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RouterOS - Downloads</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                fontFamily: {
+                    // 常规字体：使用 Manrope，配合中文字体降级
+                    sans: ['Manrope', '"PingFang SC"', '"Microsoft YaHei"', 'sans-serif'],
+                    // 等宽字体：使用 JetBrains Mono，配合中文字体降级
+                    mono: ['"JetBrains Mono"', '"PingFang SC"', '"Microsoft YaHei"', 'monospace']
+                }
+            }
+        }
+    </script>
+
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M 50,8 L 85,28 L 85,72 L 50,92 L 15,72 L 15,28 Z' fill='%23111111' stroke='%23111111' stroke-width='8' stroke-linejoin='round'/><path d='M 25,64 L 25,36 L 50,22 L 75,36 L 75,64 M 25,36 L 50,50 L 75,36 M 50,50 L 50,78' fill='none' stroke='white' stroke-width='11' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+    
     <style>
-        body { background-color: #fafafa; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #111; }
+        /* 恢复默认的 sans 字体作为全局字体 */
+        body { background-color: #fafafa; color: #111; }
+        
         .btn-active { border-color: #111 !important; color: #111 !important; font-weight: 600; box-shadow: inset 0 0 0 1px #111; }
         .btn-inactive { border-color: #e5e7eb; color: #4b5563; }
         .btn-inactive:hover { border-color: #9ca3af; color: #111; }
+        
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         select { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
