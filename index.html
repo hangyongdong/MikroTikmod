@@ -17,6 +17,11 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         select { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
     </style>
 </head>
 <body class="antialiased min-h-screen flex flex-col">
@@ -25,14 +30,11 @@
     <header class="w-full bg-white border-b border-gray-200 py-6">
         <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 sm:gap-0">
             
-            <!-- 🌟 【左边】：品牌区 (主标题 + 右下角副标题) -->
             <div class="flex items-baseline gap-3">
                 <h1 class="text-4xl font-bold tracking-tight font-mono leading-none">RouterOS</h1>
-                <!-- 紧贴在主标题右下角的副标题 -->
                 <div class="text-[11px] text-gray-400 font-mono tracking-widest uppercase mb-0.5">Custom Mirror Node</div>
             </div>
 
-            <!-- 🌟 【右边】：声明区 (免责声明) -->
             <div>
                 <div class="text-[10px] font-mono font-bold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-sm uppercase tracking-wider" title="本站资源仅限交流学习">
                     For Educational Purposes Only
@@ -48,10 +50,10 @@
             <div class="flex-grow">
                 <label class="block text-xs font-mono text-gray-500 mb-3 tracking-widest">Architecture:</label>
                 <div class="flex flex-wrap gap-2">
-                    <button class="px-5 py-2 text-sm border bg-white btn-active cursor-default">ARM64</button>
-                    <button class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed">ARM</button>
-                    <button class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed">MIPSBE</button>
-                    <button class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed">X86</button>
+                    <button id="arch-arm64" onclick="switchArch('arm64')" class="px-5 py-2 text-sm border bg-white btn-active cursor-default uppercase transition-colors">ARM64</button>
+                    <button id="arch-arm" onclick="switchArch('arm')" class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 hover:text-black transition-colors cursor-pointer uppercase">ARM</button>
+                    <button id="arch-mipsbe" onclick="switchArch('mipsbe')" class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 hover:text-black transition-colors cursor-pointer uppercase">MIPSBE</button>
+                    <button id="arch-x86" onclick="switchArch('x86')" class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 hover:text-black transition-colors cursor-pointer uppercase">X86</button>
                 </div>
             </div>
 
@@ -60,7 +62,6 @@
                 <div class="flex flex-wrap gap-2" id="channel-tabs">
                     <button onclick="switchTab('long-term')" id="tab-long-term" class="px-5 py-2 text-sm border bg-white btn-inactive transition-colors">LongTerm</button>
                     <button onclick="switchTab('stable')" id="tab-stable" class="px-5 py-2 text-sm border bg-white btn-active transition-colors">Stable</button>
-                    <button onclick="switchTab('testing')" id="tab-testing" class="px-5 py-2 text-sm border bg-white btn-inactive transition-colors">Testing</button>
                     <button onclick="switchTab('development')" id="tab-development" class="px-5 py-2 text-sm border bg-white btn-inactive transition-colors">Development</button>
                 </div>
             </div>
@@ -81,7 +82,7 @@
         <div class="bg-gray-100 border border-gray-200 p-8 min-h-[400px]">
             
             <div id="info-bar" class="bg-gray-200 text-gray-700 text-sm py-3 px-4 mb-8 hidden font-mono">
-                Latest <span id="info-channel" class="font-bold"></span> release <span id="info-version" class="font-bold"></span> download files for <span class="font-bold">ARM64</span> devices.
+                Latest <span id="info-channel" class="font-bold"></span> release <span id="info-version" class="font-bold"></span> download files for <span id="info-arch" class="font-bold uppercase">ARM64</span> devices.
             </div>
 
             <div id="loading-state" class="hidden flex-col items-center justify-center py-20 text-gray-400">
@@ -115,9 +116,8 @@
                     </div>
                 </div>
 
-
                 <div>
-                    <h3 class="text-base font-bold text-gray-800 font-mono tracking-widest mb-6 uppercase">More</h3>
+                    <h3 class="text-base font-bold text-gray-800 font-mono tracking-widest mb-6 uppercase">More & Tools</h3>
                     <div id="col-more" class="space-y-5"></div>
                 </div>
 
@@ -179,7 +179,6 @@
         </div>
     </div>
 
-    <!-- 页脚与统计 -->
     <footer class="bg-white border-t border-gray-200 py-8 text-center mt-auto">
         <p class="text-xs text-gray-400 font-mono tracking-widest uppercase">© 2026 RouterOS Custom Mirror. Powered by 红尘有爱.</p>
         <div class="mt-3 text-xs text-gray-400 font-mono flex justify-center items-center gap-3">
@@ -192,9 +191,14 @@
     <!-- 核心逻辑脚本 -->
     <script>
         const BASE_URL = window.location.pathname.includes('/routeros') ? '/routeros' : '';
-        let categorizedVersions = { 'stable': [], 'long-term': [], 'testing': [], 'development': [] };
-        let latestInfo = { 'stable': '', 'long-term': '', 'testing': '', 'development': '' };
+        
+        // 🌟 已删除 Testing
+        let categorizedVersions = { 'stable': [], 'long-term': [], 'development': [] };
+        let latestInfo = { 'stable': '', 'long-term': '', 'development': '' };
         let currentTab = 'stable';
+        
+        // 🌟 新增：架构记录器
+        let currentArch = 'arm64';
 
         function formatBytes(bytes) {
             if (!bytes || bytes === 0) return '';
@@ -208,8 +212,25 @@
             } catch (e) { return false; }
         }
 
+        // 🌟 架构切换函数
+        function switchArch(arch) {
+            currentArch = arch;
+            ['arm64', 'arm', 'mipsbe', 'x86'].forEach(a => {
+                const btn = document.getElementById(`arch-${a}`);
+                if (btn) {
+                    btn.className = (a === arch) 
+                        ? "px-5 py-2 text-sm border bg-white btn-active cursor-default uppercase transition-colors" 
+                        : "px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 hover:text-black transition-colors cursor-pointer uppercase";
+                }
+            });
+            const version = document.getElementById('version-selector').value;
+            if (version && !version.includes('Loading') && !version.includes('正在获取')) {
+                loadVersionData(version);
+            }
+        }
+
         async function initPage() {
-            const channels = ['stable', 'long-term', 'testing', 'development'];
+            const channels = ['stable', 'long-term', 'development'];
             try {
                 await Promise.all(channels.map(async (channel) => {
                     try {
@@ -223,13 +244,14 @@
                     const data = await res.json();
                     if (Array.isArray(data)) {
                         data.forEach(v => {
-                            if (v.includes('rc')) categorizedVersions['testing'].push(v);
-                            else if (v.includes('beta') || v.includes('alpha')) categorizedVersions['development'].push(v);
+                            if (v.includes('rc') || v.includes('beta') || v.includes('alpha')) categorizedVersions['development'].push(v);
                             else if (v === '7.20.8' || v === '7.21.4') categorizedVersions['long-term'].push(v);
                             else categorizedVersions['stable'].push(v);
                         });
                     } else {
-                        categorizedVersions = data;
+                        categorizedVersions['stable'] = data['stable'] || [];
+                        categorizedVersions['long-term'] = data['long-term'] || [];
+                        categorizedVersions['development'] = (data['development'] || []).concat(data['testing'] || []);
                     }
                 }
                 document.getElementById('version-selector').addEventListener('change', (e) => loadVersionData(e.target.value));
@@ -246,7 +268,7 @@
 
         function switchTab(tabId) {
             currentTab = tabId;
-            ['stable', 'long-term', 'testing', 'development'].forEach(t => {
+            ['stable', 'long-term', 'development'].forEach(t => {
                 const btn = document.getElementById(`tab-${t}`);
                 if (btn) {
                     btn.className = (t === tabId) 
@@ -312,9 +334,6 @@
             }
         }
 
-        // ==========================================
-        // 原生授权算号器控制逻辑
-        // ==========================================
         function openGenerator() {
             const modal = document.getElementById('generator-modal');
             const card = document.getElementById('generator-card');
@@ -428,7 +447,7 @@
         }
 
         // ==========================================
-        // 核心数据渲染逻辑
+        // 核心数据渲染逻辑 (包含 x86 虚拟机镜像探测)
         // ==========================================
         async function loadVersionData(version) {
             if (!version) { showState('empty'); return; }
@@ -439,19 +458,61 @@
             const colMore = document.getElementById('col-more');
             const clog = document.getElementById('changelog-content');
 
+            // 🌟 获取当前的动态架构
+            const mainArch = currentArch; 
+
             document.getElementById('info-channel').innerText = currentTab;
             document.getElementById('info-version').innerText = "v" + version;
+            document.getElementById('info-arch').innerText = mainArch.toUpperCase();
 
             try {
-                const mainArch = 'arm64'; 
-                
-                // [列1：系统主包]
-                colSys.innerHTML = `
-                    <a href="${BASE_URL}/${version}/routeros-${version}-${mainArch}.npk" class="flex items-center text-base group font-mono w-fit">
+                // [列1：系统主包 & X86 镜像]
+                let sysHtml = `
+                    <a href="${BASE_URL}/${version}/routeros-${version}-${mainArch}.npk" class="flex items-center text-base group font-mono w-fit mb-3">
                         <i class="fa-solid fa-cube mr-3 text-black group-hover:text-gray-500 transition-colors w-4 text-center"></i> 
-                        <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">RouterOS</span>
+                        <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">RouterOS (NPK)</span>
                     </a>
                 `;
+
+                if (mainArch === 'x86') {
+                    const ovaUrl = `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.ova.zip`;
+                    const vmdkUrl = `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vmdk.zip`;
+                    const qcow2Url = `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.qcow2.zip`;
+
+                    const [hasOva, hasVmdk, hasQcow2] = await Promise.all([
+                        checkFileExists(ovaUrl), checkFileExists(vmdkUrl), checkFileExists(qcow2Url)
+                    ]);
+
+                    if (hasOva || hasVmdk || hasQcow2) {
+                        sysHtml += `
+                            <div class="mt-6 pt-5 border-t border-gray-200">
+                                <span class="flex items-center text-sm text-gray-800 mb-4 font-mono">
+                                    <i class="fa-solid fa-server mr-3 text-black w-4 text-center"></i> Virtual Images:
+                                </span>
+                                <div class="pl-7 space-y-3">
+                        `;
+                        if (hasOva) {
+                            sysHtml += `
+                                <a href="${ovaUrl}" class="flex items-center text-base group font-mono w-fit">
+                                    <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">VMware OVA</span>
+                                </a>`;
+                        }
+                        if (hasVmdk) {
+                            sysHtml += `
+                                <a href="${vmdkUrl}" class="flex items-center text-base group font-mono w-fit">
+                                    <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">VMDK Disk</span>
+                                </a>`;
+                        }
+                        if (hasQcow2) {
+                            sysHtml += `
+                                <a href="${qcow2Url}" class="flex items-center text-base group font-mono w-fit">
+                                    <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">QCOW2 (PVE)</span>
+                                </a>`;
+                        }
+                        sysHtml += `</div></div>`;
+                    }
+                }
+                colSys.innerHTML = sysHtml;
 
                 // [列3：更多工具]
                 const netinstallUrl = `${BASE_URL}/extra/${version}/netinstall-${version}.zip`;
@@ -466,15 +527,16 @@
                                 <i class="fa-solid fa-file-zipper mr-3 text-black w-4 text-center"></i> Netinstall:
                             </span>
                             <div class="pl-7 space-y-2">
-                                <a href="${netinstallUrl}" class="inline-block text-base text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors font-mono">Win64</a>
+                                <a href="${netinstallUrl}" class="inline-block text-base text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors font-mono">Windows / CLI (Zip)</a>
                             </div>
                         </div>`;
                 }
-                if (hasWifiR) {
+                // 仅当非 x86 时才去显示 WiFi 驱动，x86 上本身没这些驱动
+                if (hasWifiR && mainArch !== 'x86') {
                     moreHtml += `
                         <div>
                             <span class="flex items-center text-base text-black mb-2 mt-4 font-mono">
-                                <i class="fa-solid fa-wifi mr-3 text-black w-4 text-center"></i> Ax5 & Ax6 wifi:
+                                <i class="fa-solid fa-wifi mr-3 text-black w-4 text-center"></i> Legacy Driver:
                             </span>
                             <div class="pl-7 space-y-2">
                                 <a href="${wifiRUrl}" class="inline-block text-base text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors font-mono">wifi-qcom-R</a>
@@ -506,19 +568,27 @@
                 
                 const lines = (await csvRes.text()).split('\n');
                 let extHtml = '';
+                let hasPackages = false;
 
                 for (let i = 1; i < lines.length; i++) {
                     const [arch, name, size] = lines[i].trim().split(',');
-                if (arch === 'arm64' && name && size) {
+                    // 🌟 动态匹配当前架构
+                    if (arch === mainArch && name && size) {
+                        hasPackages = true;
                         extHtml += `
                             <a href="${BASE_URL}/${version}/${name}-${version}-${arch}.npk" class="flex items-center text-base group truncate font-mono w-fit" title="${name} (${formatBytes(parseInt(size))})">
-                              <i class="fa-solid fa-box-open mr-3 text-black group-hover:text-gray-500 transition-colors w-4 text-center"></i> 
-                              <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">${name}</span>
+                                <i class="fa-solid fa-box-open mr-3 text-black group-hover:text-gray-500 transition-colors w-4 text-center"></i> 
+                                <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">${name}</span>
                             </a>
                         `;
                     }
                 }
-                colExt.innerHTML = extHtml || `<p class="text-sm text-gray-400 font-mono col-span-2">No extra packages.</p>`;
+                
+                if (hasPackages) {
+                    colExt.innerHTML = extHtml;
+                } else {
+                    colExt.innerHTML = `<p class="text-sm text-gray-400 font-mono col-span-2">No extra packages available for ${mainArch.toUpperCase()} in this version.</p>`;
+                }
                 
                 showState('data');
 
