@@ -166,20 +166,29 @@ jobs:
           
           echo ">>> 封装 VMware OVA..."
           sudo qemu-img convert -f raw -O vmdk -o subformat=streamOptimized chr-${VERSION}-x86-legacy-bios.img disk1.vmdk
-          VMDK=disk1.vmdk
-          OVF=chr-${VERSION}-x86-legacy-bios.ovf
-          OVA=chr-${VERSION}-x86-legacy-bios.ova
+          
+          VMDK="disk1.vmdk"
+          OVF="chr-${VERSION}-x86-legacy-bios.ovf"
+          OVA="chr-${VERSION}-x86-legacy-bios.ova"
+          
           FILE_SIZE=$(stat -c %s "$VMDK")
           VIRTUAL_SIZE=$(qemu-img info --output=json "$VMDK" | jq '.["virtual-size"]')
           CAPACITY_MB=$((VIRTUAL_SIZE / 1024 / 1024))
-          echo "$OVF_TEMPLATE" | sudo sed -e "s|{VMDK_FILE}|$VMDK|g" -e "s|{FILE_SIZE}|$FILE_SIZE|g" -e "s|{CAPACITY_MB}|$CAPACITY_MB|g" -e "s|{FIRMWARE_TYPE}|bios|g" | sudo tee $OVF
+          
+          echo ">>> 调用独立 Python 脚本生成 OVF..."
+          python3 build_ovf.py "$VMDK" "$FILE_SIZE" "$CAPACITY_MB" "$OVF"
+          
           sudo tar -cvf "$OVA" "$OVF" "$VMDK"
+          sudo rm $VMDK
+          sudo rm $OVF
+          sudo zip $OVA.zip $OVA
+          sudo rm $OVA
 
-          # 准备输出目录
+          echo ">>> 准备输出目录..."
           mkdir -p output_images
           sudo mv chr-${VERSION}-x86-legacy-bios.qcow2 output_images/
           sudo mv chr-${VERSION}-x86-legacy-bios.vmdk output_images/
-          sudo mv $OVA output_images/
+          sudo mv $OVA.zip output_images/
 
       - name: 📤 上传到 GitHub Artifacts 供本地下载测试
         uses: actions/upload-artifact@v4
