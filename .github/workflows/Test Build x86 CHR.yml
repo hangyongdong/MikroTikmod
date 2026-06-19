@@ -141,7 +141,7 @@ jobs:
           sudo mkdir -p ./chr/routeros/{var/pdb/{system,option},boot,rw/disk}
 
           echo "执行 Patch (routeros)..."
-          sudo -E python3 patch.py npk routeros-${VERSION}-${ARCH}.npk        
+          sudo -E python3 patch.py npk ./all_packages/routeros-${VERSION}-${ARCH}.npk        
           
           echo "签名当前所有 NPK 文件..."          
           NPK_FILES=$(find ./all_packages -name "*.npk")
