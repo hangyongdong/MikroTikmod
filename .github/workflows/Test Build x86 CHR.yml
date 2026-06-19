@@ -1,0 +1,157 @@
+name: Test Build x86 CHR
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'RouterOS CHR 版本 (例如: 7.23)'
+        required: true
+        type: string
+
+jobs:
+  build-test-x86:
+    name: 🛠️ 编译测试 x86 CHR
+    runs-on: ubuntu-latest
+    
+    env:
+      VERSION: ${{ inputs.version }}
+      ARCH: 'x86'
+      # 这里可以按需填入您的测试密钥环境变量，如果 patch.py 需要的话
+      CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
+      CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
+
+    steps:
+      - name: 检出代码仓库
+        uses: actions/checkout@v4
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: 安装底层依赖与环境
+        run: |
+          sudo apt-get update
+          # 安装 qemu-utils 和 nbd 等挂载虚拟磁盘的核心工具
+          sudo apt-get install -y zip unzip wget curl squashfs-tools python3-pip qemu-utils gdisk
+          sudo pip3 install pefile pyelftools
+          # 加载 NBD 内核模块 (GitHub Runner 必备)
+          sudo modprobe nbd
+
+      - name: 下载官方 CHR 原始镜像与系统包
+        run: |
+          echo ">>> 正在下载 x86 NPK 系统包..."
+          curl -L -# -O "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
+          sudo mkdir -p ./all_packages
+          sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages/
+          
+          echo ">>> 正在下载官方 chr.img.zip..."
+          sudo wget -nv -O chr.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img.zip"
+          sudo unzip chr.img.zip
+          sudo mv chr-${VERSION}.img chr.img
+
+      - name: 挂载、劫持引导并重构 CHR 磁盘镜像
+        run: |
+          echo ">>> 开始重构 CHR 虚拟磁盘..."
+          OVF_TEMPLATE='<?xml version="1.0" encoding="UTF-8"?>
+          <Envelope vmw:buildId="build-18663434" xmlns="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <References><File ovf:href="{VMDK_FILE}" ovf:id="file1" ovf:size="{FILE_SIZE}"/></References>
+            <DiskSection><Info>Virtual disk information</Info><Disk ovf:capacity="{CAPACITY_MB}" ovf:capacityAllocationUnits="byte * 2^20" ovf:diskId="vmdisk1" ovf:fileRef="file1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/></DiskSection>
+            <NetworkSection><Info>The list of logical networks</Info><Network ovf:name="VM Network"><Description>The VM Network network</Description></Network></NetworkSection>
+            <VirtualSystem ovf:id="vm">
+              <Info>A virtual machine</Info><Name>MikroTik_RouterOS_CHR</Name>
+              <OperatingSystemSection ovf:id="100" vmw:osType="other3xLinux64Guest"><Info>The kind of installed guest operating system</Info></OperatingSystemSection>
+              <VirtualHardwareSection>
+                <Info>Virtual hardware requirements</Info>
+                <System><vssd:ElementName>Virtual Hardware Family</vssd:ElementName><vssd:InstanceID>0</vssd:InstanceID><vssd:VirtualSystemIdentifier>MikroTik_RouterOS_CHR</vssd:VirtualSystemIdentifier><vssd:VirtualSystemType>vmx-10</vssd:VirtualSystemType></System>
+                <Item><rasd:AllocationUnits>hertz * 10^6</rasd:AllocationUnits><rasd:Description>Number of Virtual CPUs</rasd:Description><rasd:ElementName>1 virtual CPU(s)</rasd:ElementName><rasd:InstanceID>1</rasd:InstanceID><rasd:ResourceType>3</rasd:ResourceType><rasd:VirtualQuantity>1</rasd:VirtualQuantity></Item>
+                <Item><rasd:AllocationUnits>byte * 2^20</rasd:AllocationUnits><rasd:Description>Memory Size</rasd:Description><rasd:ElementName>1024MB of memory</rasd:ElementName><rasd:InstanceID>2</rasd:InstanceID><rasd:ResourceType>4</rasd:ResourceType><rasd:VirtualQuantity>1024</rasd:VirtualQuantity></Item>
+                <Item><rasd:Address>0</rasd:Address><rasd:Description>IDE Controller</rasd:Description><rasd:ElementName>ideController0</rasd:ElementName><rasd:InstanceID>3</rasd:InstanceID><rasd:ResourceType>5</rasd:ResourceType></Item>
+                <Item><rasd:AddressOnParent>0</rasd:AddressOnParent><rasd:ElementName>disk0</rasd:ElementName><rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource><rasd:InstanceID>4</rasd:InstanceID><rasd:Parent>3</rasd:Parent><rasd:ResourceType>17</rasd:ResourceType></Item>
+                <Item><rasd:AddressOnParent>1</rasd:AddressOnParent><rasd:AutomaticAllocation>true</rasd:AutomaticAllocation><rasd:Connection>VM Network</rasd:Connection><rasd:Description>VmxNet3 ethernet adapter</rasd:Description><rasd:ElementName>ethernet0</rasd:ElementName><rasd:InstanceID>5</rasd:InstanceID><rasd:ResourceSubType>VmxNet3</rasd:ResourceSubType><rasd:ResourceType>10</rasd:ResourceType><vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="160"/><vmw:Config ovf:required="false" vmw:key="connectable.allowGuestControl" vmw:value="true"/></Item>
+                <vmw:Config ovf:required="false" vmw:key="firmware" vmw:value="{FIRMWARE_TYPE}"/>
+              </VirtualHardwareSection>
+            </VirtualSystem>
+          </Envelope>'
+          
+          # 创建空白磁盘并分区
+          truncate --size 128M chr-${VERSION}-x86-legacy-bios.img
+          sgdisk --clear --set-alignment=2 \
+              --new=1::+32M --typecode=1:8300 --change-name=1:"RouterOS Boot" --attributes=1:set:2 \
+              --new=2::-0 --typecode=2:8300 --change-name=2:"RouterOS" \
+              --gpttombr=1:2 \
+              chr-${VERSION}-x86-legacy-bios.img
+              
+          # 借用官方 MBR 扇区
+          dd if=chr.img of=pt.bin bs=1 count=66 skip=446
+          echo -e "\x80" | dd of=pt.bin  bs=1 count=1  conv=notrunc
+          sgdisk --mbrtogpt --clear --set-alignment=2 \
+              --new=1::+32M --typecode=1:8300 --change-name=1:"RouterOS Boot" --attributes=1:set:2 \
+              --new=2::-0 --typecode=2:8300 --change-name=2:"RouterOS" \
+              chr-${VERSION}-x86-legacy-bios.img
+          dd if=chr.img of=chr-${VERSION}-x86-legacy-bios.img bs=1 count=446 conv=notrunc
+          dd if=pt.bin of=chr-${VERSION}-x86-legacy-bios.img  bs=1 count=66 seek=446 conv=notrunc
+          
+          # NBD 挂载并格式化
+          sudo qemu-nbd -c /dev/nbd1 -f raw chr-${VERSION}-x86-legacy-bios.img
+          sudo mkfs.vfat -n "Boot" /dev/nbd1p1
+          sudo mkfs.ext4 -F -L "RouterOS"  -m 0 /dev/nbd1p2
+          
+          # ==========================================
+          # 🌟 挂载 Boot 分区，Patch UEFI 引导
+          # ==========================================
+          sudo mkdir -p ./chr/{boot,routeros}
+          sudo mount /dev/nbd1p1 ./chr/boot/
+          # 模拟拷贝官方的 EFI 文件 (注意此处官方如果没提供需调整路径)
+          sudo mkdir -p ./chr/boot/EFI/BOOT
+          
+          # 从官方包中提取或生成 BOOTX64.EFI，并执行 Patch (根据您 patch.py 的实际逻辑)
+          # 注意：这里需要确保您的环境里确实有官方的 BOOTX64.EFI
+          # sudo -E python3 patch.py block ./chr/boot/EFI/BOOT/BOOTX64.EFI
+          
+          sudo umount /dev/nbd1p1
+          
+          # ==========================================
+          # 🌟 挂载系统分区，植入修改过的 NPK
+          # ==========================================
+          sudo mount /dev/nbd1p2 ./chr/routeros/
+          sudo mkdir -p ./chr/routeros/{var/pdb/{system,option},boot,rw/disk}
+          
+          # 将解压出来的系统主包强制塞入底层目录
+          sudo cp ./all_packages/routeros-${VERSION}-${ARCH}.npk ./chr/routeros/var/pdb/system/image
+          
+          # 植入启动自定脚本
+          echo -e '#!/bin/sh\n# Executed before loader start\n' | sudo tee ./chr/routeros/rw/disk/rc.local
+          
+          sudo umount /dev/nbd1p2
+          sudo qemu-nbd -d /dev/nbd1
+
+      - name: 转换虚拟机格式与打包 OVA
+        run: |
+          echo ">>> 转换镜像格式..."
+          sudo qemu-img convert -f raw -O qcow2 chr-${VERSION}-x86-legacy-bios.img chr-${VERSION}-x86-legacy-bios.qcow2
+          sudo qemu-img convert -f raw -O vmdk chr-${VERSION}-x86-legacy-bios.img chr-${VERSION}-x86-legacy-bios.vmdk
+          
+          echo ">>> 封装 VMware OVA..."
+          sudo qemu-img convert -f raw -O vmdk -o subformat=streamOptimized chr-${VERSION}-x86-legacy-bios.img disk1.vmdk
+          VMDK=disk1.vmdk
+          OVF=chr-${VERSION}-x86-legacy-bios.ovf
+          OVA=chr-${VERSION}-x86-legacy-bios.ova
+          FILE_SIZE=$(stat -c %s "$VMDK")
+          VIRTUAL_SIZE=$(qemu-img info --output=json "$VMDK" | jq '.["virtual-size"]')
+          CAPACITY_MB=$((VIRTUAL_SIZE / 1024 / 1024))
+          echo "$OVF_TEMPLATE" | sudo sed -e "s|{VMDK_FILE}|$VMDK|g" -e "s|{FILE_SIZE}|$FILE_SIZE|g" -e "s|{CAPACITY_MB}|$CAPACITY_MB|g" -e "s|{FIRMWARE_TYPE}|bios|g" | sudo tee $OVF
+          sudo tar -cvf "$OVA" "$OVF" "$VMDK"
+
+          # 准备输出目录
+          mkdir -p output_images
+          sudo mv chr-${VERSION}-x86-legacy-bios.qcow2 output_images/
+          sudo mv chr-${VERSION}-x86-legacy-bios.vmdk output_images/
+          sudo mv $OVA output_images/
+
+      - name: 📤 上传到 GitHub Artifacts 供本地下载测试
+        uses: actions/upload-artifact@v4
+        with:
+          name: chr-x86-test-images-${{ env.VERSION }}
+          path: output_images/
+          retention-days: 3  # 测试文件保留 3 天自动删除
