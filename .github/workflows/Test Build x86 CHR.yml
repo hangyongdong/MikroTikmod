@@ -73,92 +73,63 @@ jobs:
           sudo unzip -q chr.img.zip
           sudo mv chr-${VERSION}.img chr.img
 
+          echo ">>> 4.执行 Patch (routeros)..."
+          sudo -E python3 patch.py npk ./all_packages/routeros-${VERSION}-${ARCH}.npk        
+          
+          echo ">>> 5.签名当前所有 NPK 文件..."          
+          NPK_FILES=$(find ./all_packages -name "*.npk")
+          for file in $NPK_FILES; do
+          sudo -E python3 npk.py sign "$file" "$file"
+          done
+
       - name: 挂载、劫持引导并重构 CHR 磁盘镜像
         run: |
           echo ">>> 开始重构 CHR 虚拟磁盘..."
-          OVF_TEMPLATE='<?xml version="1.0" encoding="UTF-8"?>
-          <Envelope vmw:buildId="build-18663434" xmlns="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-            <References><File ovf:href="{VMDK_FILE}" ovf:id="file1" ovf:size="{FILE_SIZE}"/></References>
-            <DiskSection><Info>Virtual disk information</Info><Disk ovf:capacity="{CAPACITY_MB}" ovf:capacityAllocationUnits="byte * 2^20" ovf:diskId="vmdisk1" ovf:fileRef="file1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/></DiskSection>
-            <NetworkSection><Info>The list of logical networks</Info><Network ovf:name="VM Network"><Description>The VM Network network</Description></Network></NetworkSection>
-            <VirtualSystem ovf:id="vm">
-              <Info>A virtual machine</Info><Name>MikroTik_RouterOS_CHR</Name>
-              <OperatingSystemSection ovf:id="100" vmw:osType="other3xLinux64Guest"><Info>The kind of installed guest operating system</Info></OperatingSystemSection>
-              <VirtualHardwareSection>
-                <Info>Virtual hardware requirements</Info>
-                <System><vssd:ElementName>Virtual Hardware Family</vssd:ElementName><vssd:InstanceID>0</vssd:InstanceID><vssd:VirtualSystemIdentifier>MikroTik_RouterOS_CHR</vssd:VirtualSystemIdentifier><vssd:VirtualSystemType>vmx-10</vssd:VirtualSystemType></System>
-                <Item><rasd:AllocationUnits>hertz * 10^6</rasd:AllocationUnits><rasd:Description>Number of Virtual CPUs</rasd:Description><rasd:ElementName>1 virtual CPU(s)</rasd:ElementName><rasd:InstanceID>1</rasd:InstanceID><rasd:ResourceType>3</rasd:ResourceType><rasd:VirtualQuantity>1</rasd:VirtualQuantity></Item>
-                <Item><rasd:AllocationUnits>byte * 2^20</rasd:AllocationUnits><rasd:Description>Memory Size</rasd:Description><rasd:ElementName>1024MB of memory</rasd:ElementName><rasd:InstanceID>2</rasd:InstanceID><rasd:ResourceType>4</rasd:ResourceType><rasd:VirtualQuantity>1024</rasd:VirtualQuantity></Item>
-                <Item><rasd:Address>0</rasd:Address><rasd:Description>IDE Controller</rasd:Description><rasd:ElementName>ideController0</rasd:ElementName><rasd:InstanceID>3</rasd:InstanceID><rasd:ResourceType>5</rasd:ResourceType></Item>
-                <Item><rasd:AddressOnParent>0</rasd:AddressOnParent><rasd:ElementName>disk0</rasd:ElementName><rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource><rasd:InstanceID>4</rasd:InstanceID><rasd:Parent>3</rasd:Parent><rasd:ResourceType>17</rasd:ResourceType></Item>
-                <Item><rasd:AddressOnParent>1</rasd:AddressOnParent><rasd:AutomaticAllocation>true</rasd:AutomaticAllocation><rasd:Connection>VM Network</rasd:Connection><rasd:Description>VmxNet3 ethernet adapter</rasd:Description><rasd:ElementName>ethernet0</rasd:ElementName><rasd:InstanceID>5</rasd:InstanceID><rasd:ResourceSubType>VmxNet3</rasd:ResourceSubType><rasd:ResourceType>10</rasd:ResourceType><vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="160"/><vmw:Config ovf:required="false" vmw:key="connectable.allowGuestControl" vmw:value="true"/></Item>
-                <vmw:Config ovf:required="false" vmw:key="firmware" vmw:value="{FIRMWARE_TYPE}"/>
-              </VirtualHardwareSection>
-            </VirtualSystem>
-          </Envelope>'
           
-          # 创建空白磁盘并分区
-          truncate --size 128M chr-${VERSION}-x86-legacy-bios.img
-          sgdisk --clear --set-alignment=2 \
-              --new=1::+32M --typecode=1:8300 --change-name=1:"RouterOS Boot" --attributes=1:set:2 \
-              --new=2::-0 --typecode=2:8300 --change-name=2:"RouterOS" \
-              --gpttombr=1:2 \
-              chr-${VERSION}-x86-legacy-bios.img
-              
-          # 借用官方 MBR 扇区
-          dd if=chr.img of=pt.bin bs=1 count=66 skip=446
-          echo -e "\x80" | dd of=pt.bin  bs=1 count=1  conv=notrunc
-          sgdisk --mbrtogpt --clear --set-alignment=2 \
-              --new=1::+32M --typecode=1:8300 --change-name=1:"RouterOS Boot" --attributes=1:set:2 \
-              --new=2::-0 --typecode=2:8300 --change-name=2:"RouterOS" \
-              chr-${VERSION}-x86-legacy-bios.img
-          dd if=chr.img of=chr-${VERSION}-x86-legacy-bios.img bs=1 count=446 conv=notrunc
-          dd if=pt.bin of=chr-${VERSION}-x86-legacy-bios.img  bs=1 count=66 seek=446 conv=notrunc
+          # ==========================================
+          # 🌟 修复 1：直接复制官方原版镜像（完美保留传统 BIOS 的引导文件）
+          # ==========================================
+          cp chr.img chr-${VERSION}-x86-legacy-bios.img
           
-          # NBD 挂载并格式化
+          # 挂载为本地虚拟块设备
           sudo qemu-nbd -c /dev/nbd1 -f raw chr-${VERSION}-x86-legacy-bios.img
-          sudo mkfs.vfat -n "Boot" /dev/nbd1p1
-          sudo mkfs.ext4 -F -L "RouterOS"  -m 0 /dev/nbd1p2
           
           # ==========================================
-          # 🌟 挂载 Boot 分区，Patch UEFI 引导
+          # 🌟 修复 2：劫持 EFI 引导程序 (直接利用 patch.py 操作底层块设备)
           # ==========================================
-          sudo mkdir -p ./chr/{boot,routeros}
-          sudo mount /dev/nbd1p1 ./chr/boot/
-          # 模拟拷贝官方的 EFI 文件 (注意此处官方如果没提供需调整路径)
-          sudo mkdir -p ./chr/boot/EFI/BOOT
-          
-          # 从官方包中提取或生成 BOOTX64.EFI，并执行 Patch (根据您 patch.py 的实际逻辑)
-          # 注意：这里需要确保您的环境里确实有官方的 BOOTX64.EFI
-          # sudo -E python3 patch.py block ./chr/boot/EFI/BOOT/BOOTX64.EFI
-          
-          sudo umount /dev/nbd1p1
+          echo ">>> 正在 Patch UEFI 引导程序 (BOOTX64.EFI)..."
+          if [ -f "patch.py" ]; then
+              # 直接对块设备里的 EFI 文件下黑手，完全不需要格式化 boot 分区！
+              sudo -E python3 patch.py block /dev/nbd1p1 EFI/BOOT/BOOTX64.EFI
+          else
+              echo "❌ 错误: 当前目录下未找到 patch.py！"
+              exit 1
+          fi
           
           # ==========================================
-          # 🌟 挂载系统分区，植入修改过的 NPK
+          # 🌟 修复 3：仅重建系统分区 (Partition 2)，并植入主包
           # ==========================================
+          echo ">>> 正在重建并格式化系统分区..."
+          # 强制格式化系统分区并打上官方卷标
+          sudo mkfs.ext4 -F -L "RouterOS" -m 0 /dev/nbd1p2
+          
+          echo ">>> 正在植入 RouterOS 系统主包..."
+          sudo mkdir -p ./chr/routeros
           sudo mount /dev/nbd1p2 ./chr/routeros/
-          sudo mkdir -p ./chr/routeros/{var/pdb/{system,option},boot,rw/disk}
-
-          echo "执行 Patch (routeros)..."
-          sudo -E python3 patch.py npk ./all_packages/routeros-${VERSION}-${ARCH}.npk        
+          sudo mkdir -p ./chr/routeros/{var/pdb/system,boot,rw/disk}
           
-          echo "签名当前所有 NPK 文件..."          
-          NPK_FILES=$(find ./all_packages -name "*.npk")
-          for file in $NPK_FILES; do
-              sudo -E python3 npk.py sign "$file" "$file"
-          done
-          
-          # 将解压出来的系统主包强制塞入底层目录
+          # 狸猫换太子：将刚才下载的 routeros-xxx-x86.npk 强制塞入系统底层
           sudo cp ./all_packages/routeros-${VERSION}-${ARCH}.npk ./chr/routeros/var/pdb/system/image
           
-          # 植入启动自定脚本
+          # 植入启动自定义脚本
           echo -e '#!/bin/sh\n# Executed before loader start\n' | sudo tee ./chr/routeros/rw/disk/rc.local
           
+          # 卸载与清理
           sudo umount /dev/nbd1p2
           sudo qemu-nbd -d /dev/nbd1
+          echo ">>> 镜像底层重构完成！"
 
-      - name: 转换虚拟机格式与打包 OVA
+      - name: 生成 OVF 配置与转换 OVA 封装
         run: |
           echo ">>> 转换镜像格式..."
           sudo qemu-img convert -f raw -O qcow2 chr-${VERSION}-x86-legacy-bios.img chr-${VERSION}-x86-legacy-bios.qcow2
@@ -175,12 +146,96 @@ jobs:
           VIRTUAL_SIZE=$(qemu-img info --output=json "$VMDK" | jq '.["virtual-size"]')
           CAPACITY_MB=$((VIRTUAL_SIZE / 1024 / 1024))
           
-          echo ">>> 调用独立 Python 脚本生成 OVF..."
+          echo ">>> 调用 Python 脚本生成 OVF..."
+          cat << 'EOF' > build_ovf.py
+          import sys
+          import textwrap
+          vmdk_name, file_size, capacity_mb, ovf_out = sys.argv[1:5]
+          xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+          <Envelope xmlns="http://schemas.dmtf.org/ovf/envelope/1" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" vmw:buildId="build-18663434">
+            <References>
+              <File ovf:href="{vmdk_name}" ovf:id="file1" ovf:size="{file_size}"/>
+            </References>
+            <DiskSection>
+              <Info>Virtual disk information</Info>
+              <Disk ovf:capacity="{capacity_mb}" ovf:capacityAllocationUnits="byte * 2^20" ovf:diskId="vmdisk1" ovf:fileRef="file1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/>
+            </DiskSection>
+            <NetworkSection>
+              <Info>The list of logical networks</Info>
+              <Network ovf:name="VM Network">
+                <Description>The VM Network network</Description>
+              </Network>
+            </NetworkSection>
+            <VirtualSystem ovf:id="vm">
+              <Info>A virtual machine</Info>
+              <Name>MikroTik_RouterOS_CHR</Name>
+              <OperatingSystemSection ovf:id="100" vmw:osType="other3xLinux64Guest">
+                <Info>The kind of installed guest operating system</Info>
+              </OperatingSystemSection>
+              <VirtualHardwareSection>
+                <Info>Virtual hardware requirements</Info>
+                <System>
+                  <vssd:ElementName>Virtual Hardware Family</vssd:ElementName>
+                  <vssd:InstanceID>0</vssd:InstanceID>
+                  <vssd:VirtualSystemIdentifier>MikroTik_RouterOS_CHR</vssd:VirtualSystemIdentifier>
+                  <vssd:VirtualSystemType>vmx-10</vssd:VirtualSystemType>
+                </System>
+                <Item>
+                  <rasd:AllocationUnits>hertz * 10^6</rasd:AllocationUnits>
+                  <rasd:Description>Number of Virtual CPUs</rasd:Description>
+                  <rasd:ElementName>1 virtual CPU(s)</rasd:ElementName>
+                  <rasd:InstanceID>1</rasd:InstanceID>
+                  <rasd:ResourceType>3</rasd:ResourceType>
+                  <rasd:VirtualQuantity>1</rasd:VirtualQuantity>
+                </Item>
+                <Item>
+                  <rasd:AllocationUnits>byte * 2^20</rasd:AllocationUnits>
+                  <rasd:Description>Memory Size</rasd:Description>
+                  <rasd:ElementName>1024MB of memory</rasd:ElementName>
+                  <rasd:InstanceID>2</rasd:InstanceID>
+                  <rasd:ResourceType>4</rasd:ResourceType>
+                  <rasd:VirtualQuantity>1024</rasd:VirtualQuantity>
+                </Item>
+                <Item>
+                  <rasd:Address>0</rasd:Address>
+                  <rasd:Description>IDE Controller</rasd:Description>
+                  <rasd:ElementName>ideController0</rasd:ElementName>
+                  <rasd:InstanceID>3</rasd:InstanceID>
+                  <rasd:ResourceType>5</rasd:ResourceType>
+                </Item>
+                <Item>
+                  <rasd:AddressOnParent>0</rasd:AddressOnParent>
+                  <rasd:ElementName>disk0</rasd:ElementName>
+                  <rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource>
+                  <rasd:InstanceID>4</rasd:InstanceID>
+                  <rasd:Parent>3</rasd:Parent>
+                  <rasd:ResourceType>17</rasd:ResourceType>
+                </Item>
+                <Item>
+                  <rasd:AddressOnParent>1</rasd:AddressOnParent>
+                  <rasd:AutomaticAllocation>true</rasd:AutomaticAllocation>
+                  <rasd:Connection>VM Network</rasd:Connection>
+                  <rasd:Description>VmxNet3 ethernet adapter</rasd:Description>
+                  <rasd:ElementName>ethernet0</rasd:ElementName>
+                  <rasd:InstanceID>5</rasd:InstanceID>
+                  <rasd:ResourceSubType>VmxNet3</rasd:ResourceSubType>
+                  <rasd:ResourceType>10</rasd:ResourceType>
+                  <vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="160"/>
+                  <vmw:Config ovf:required="false" vmw:key="connectable.allowGuestControl" vmw:value="true"/>
+                </Item>
+                <vmw:Config ovf:required="false" vmw:key="firmware" vmw:value="bios"/>
+              </VirtualHardwareSection>
+            </VirtualSystem>
+          </Envelope>
+          """
+          with open(ovf_out, 'w', encoding='utf-8') as f:
+              f.write(textwrap.dedent(xml_content).strip())
+          EOF
+
           python3 build_ovf.py "$VMDK" "$FILE_SIZE" "$CAPACITY_MB" "$OVF"
           
           sudo tar -cvf "$OVA" "$OVF" "$VMDK"
-          sudo rm $VMDK
-          sudo rm $OVF
+          sudo rm $VMDK $OVF
           sudo zip $OVA.zip $OVA
           sudo rm $OVA
 
