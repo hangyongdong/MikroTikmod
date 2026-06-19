@@ -53,14 +53,24 @@ jobs:
 
       - name: 下载官方 CHR 原始镜像与系统包
         run: |
-          echo ">>> 正在下载 x86 NPK 系统包..."
+          echo ">>> 1. 正在下载 x86 系统主包..."
+          # 智能探测：优先尝试下载带架构名的包，如果 404，则自动回退下载您提到的无架构名主包，并统一保存为标准命名
+          if ! curl -L -f -# -o routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"; then
+              echo ">>> 未找到带架构的主包，正在尝试拉取默认命名主包..."
+              curl -L -f -# -o routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}.npk"
+          fi
+
+          echo ">>> 2. 正在下载 Extra Packages (扩展包)..."
           curl -L -# -O "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
           sudo mkdir -p ./all_packages
           sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages/
           
-          echo ">>> 正在下载官方 chr.img.zip..."
+          # 将下载好的主系统包移动到全量目录下，方便后面统一提取植入
+          sudo mv routeros-${VERSION}-${ARCH}.npk ./all_packages/
+          
+          echo ">>> 3. 正在下载官方 chr.img.zip..."
           sudo wget -nv -O chr.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img.zip"
-          sudo unzip chr.img.zip
+          sudo unzip -q chr.img.zip
           sudo mv chr-${VERSION}.img chr.img
 
       - name: 挂载、劫持引导并重构 CHR 磁盘镜像
@@ -131,7 +141,7 @@ jobs:
           sudo mkdir -p ./chr/routeros/{var/pdb/{system,option},boot,rw/disk}
           
           # 将解压出来的系统主包强制塞入底层目录
-          sudo cp ./all_packages/routeros-${VERSION}.npk ./chr/routeros/var/pdb/system/image
+          sudo cp ./all_packages/routeros-${VERSION}-${ARCH}.npk ./chr/routeros/var/pdb/system/image
           
           # 植入启动自定脚本
           echo -e '#!/bin/sh\n# Executed before loader start\n' | sudo tee ./chr/routeros/rw/disk/rc.local
