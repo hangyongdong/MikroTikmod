@@ -59,7 +59,8 @@ jobs:
           sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages/
           
           echo ">>> 正在下载官方 chr.img.zip..."
-          sudo wget -nv -O chr.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img"
+          sudo wget -nv -O chr.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img.zip"
+          sudo unzip chr.img.zip
           sudo mv chr-${VERSION}.img chr.img
 
       - name: 挂载、劫持引导并重构 CHR 磁盘镜像
