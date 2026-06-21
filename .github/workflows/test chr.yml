@@ -1,0 +1,214 @@
+name: Test Build CHR (x86 & arm64)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'RouterOS CHR 版本 (例如: 7.23)'
+        required: true
+        type: string
+
+jobs:
+  build-test-chr:
+    name: 🛠️ 编译 CHR (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    
+    # 🌟 引入架构矩阵，同时并行处理 x86 和 arm64
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86, arm64]
+    
+    env:
+      VERSION: ${{ inputs.version }}
+      ARCH: ${{ matrix.arch }}
+      MIKRO_NPK_SIGN_PUBLIC_KEY: ${{ secrets.MIKRO_NPK_SIGN_PUBLIC_KEY }}
+      MIKRO_LICENSE_PUBLIC_KEY: ${{ secrets.MIKRO_LICENSE_PUBLIC_KEY }}
+      CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
+      CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
+      CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
+      CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
+      MIKRO_UPGRADE_URL: ${{ secrets.MIKRO_UPGRADE_URL }}
+      CUSTOM_UPGRADE_URL: ${{ secrets.CUSTOM_UPGRADE_URL }}
+      MIKRO_CLOUD_URL: ${{ secrets.MIKRO_CLOUD_URL }}
+      CUSTOM_CLOUD_URL: ${{ secrets.CUSTOM_CLOUD_URL }}
+      MIKRO_CLOUD_PUBLIC_KEY: ${{ secrets.MIKRO_CLOUD_PUBLIC_KEY }}
+      CUSTOM_CLOUD_PUBLIC_KEY: ${{ secrets.CUSTOM_CLOUD_PUBLIC_KEY }}          
+      MIKRO_LICENCE_URL: ${{ secrets.MIKRO_LICENCE_URL }}
+      CUSTOM_LICENCE_URL: ${{ secrets.CUSTOM_LICENCE_URL }}
+      MIKRO_RENEW_URL: ${{ secrets.MIKRO_RENEW_URL }}
+      CUSTOM_RENEW_URL: ${{ secrets.CUSTOM_RENEW_URL }}
+
+    steps:
+      - name: 检出代码仓库
+        uses: actions/checkout@v4
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: 安装底层依赖与环境
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip unzip wget curl squashfs-tools python3-pip qemu-utils
+          sudo pip3 install pefile pyelftools
+          sudo modprobe nbd
+
+      - name: 下载官方 CHR 原始镜像与系统包
+        run: |
+          echo ">>> 1. 正在下载 ${ARCH} 系统主包..."
+          if ! curl -L -f -# -o routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"; then
+              echo ">>> 未找到带架构的主包，尝试拉取默认命名主包..."
+              curl -L -f -# -o routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}.npk"
+          fi
+
+          echo ">>> 2. 正在下载 Extra Packages (仅用于签名，未来合并时可统一提取)..."
+          curl -L -# -O "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
+          sudo mkdir -p ./all_packages
+          sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages/
+          
+          sudo mv routeros-${VERSION}-${ARCH}.npk ./all_packages/
+          
+          echo ">>> 3. 正在下载官方 CHR 磁盘镜像..."
+          # 🌟 根据架构智能适配下载 URL
+          if [ "${ARCH}" == "x86" ]; then
+              CHR_URL="https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img.zip"
+          else
+              CHR_URL="https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}-${ARCH}.img.zip"
+          fi
+          
+          sudo wget -nv -O chr.img.zip "$CHR_URL"
+          sudo unzip -q chr.img.zip
+          # 统一重命名，抹平官方命名差异
+          sudo mv *.img chr.img
+
+          echo ">>> 4. 执行 Patch (routeros)..."
+          sudo -E python3 patch.py npk ./all_packages/routeros-${VERSION}-${ARCH}.npk        
+          
+          echo ">>> 5. 签名 NPK 文件..."          
+          sudo -E python3 npk.py sign "./all_packages/routeros-${VERSION}-${ARCH}.npk" "./all_packages/routeros-${VERSION}-${ARCH}.npk"
+
+      - name: 挂载、劫持引导并重构 CHR 磁盘镜像
+        run: |
+          echo ">>> 开始重构 CHR 虚拟磁盘..."
+          
+          # 🌟 根据架构设定文件名和 EFI 引导文件路径
+          if [ "${ARCH}" == "x86" ]; then
+              IMG_NAME="chr-${VERSION}-x86-legacy-bios.img"
+              EFI_FILE="EFI/BOOT/BOOTX64.EFI"
+          else
+              IMG_NAME="chr-${VERSION}-arm64.img"
+              EFI_FILE="EFI/BOOT/BOOTAA64.EFI"
+          fi
+          
+          cp chr.img "$IMG_NAME"
+          
+          # 挂载为本地虚拟块设备
+          sudo qemu-nbd -c /dev/nbd1 -f raw "$IMG_NAME"
+          
+          echo ">>> 正在 Patch UEFI 引导程序 ($EFI_FILE)..."
+          if [ -f "patch.py" ]; then
+              sudo -E python3 patch.py block /dev/nbd1p1 "$EFI_FILE"
+          else
+              echo "❌ 错误: 当前目录下未找到 patch.py！"
+              exit 1
+          fi
+          
+          echo ">>> 正在重建并格式化系统分区..."
+          sudo mkfs.ext4 -F -L "RouterOS" -m 0 /dev/nbd1p2
+          
+          echo ">>> 正在植入 RouterOS 系统主包..."
+          sudo mkdir -p ./chr/routeros
+          sudo mount /dev/nbd1p2 ./chr/routeros/
+          sudo mkdir -p ./chr/routeros/{var/pdb/system,boot,rw/disk}
+          
+          sudo cp ./all_packages/routeros-${VERSION}-${ARCH}.npk ./chr/routeros/var/pdb/system/image
+          
+          echo -e '#!/bin/sh\n# Executed before loader start\n' | sudo tee ./chr/routeros/rw/disk/rc.local
+          
+          sudo umount /dev/nbd1p2
+          sudo qemu-nbd -d /dev/nbd1
+          echo ">>> ${ARCH} 镜像底层重构完成！"
+
+      - name: 生成 OVF 配置与转换 OVA 封装
+        run: |
+          echo ">>> 转换镜像格式并打包..."
+          mkdir -p output_images
+          
+          # 🌟 按架构分支输出特定格式的镜像包
+          if [ "${ARCH}" == "x86" ]; then
+              IMG_NAME="chr-${VERSION}-x86-legacy-bios.img"
+              VMDK_NAME="chr-${VERSION}-x86-legacy-bios.vmdk"
+              OVA_NAME="chr-${VERSION}-x86-legacy-bios.ova"
+              
+              sudo qemu-img convert -f raw -O vmdk "$IMG_NAME" "$VMDK_NAME"
+              
+              # 制作 OVA
+              sudo qemu-img convert -f raw -O vmdk -o subformat=streamOptimized "$IMG_NAME" disk1.vmdk
+              FILE_SIZE=$(stat -c %s "disk1.vmdk")
+              VIRTUAL_SIZE=$(qemu-img info --output=json "disk1.vmdk" | jq '.["virtual-size"]')
+              CAPACITY_MB=$((VIRTUAL_SIZE / 1024 / 1024))
+              OVF_NAME="chr-${VERSION}-x86-legacy-bios.ovf"
+              
+              cat << 'EOF' > build_ovf.py
+              import sys
+              import textwrap
+              vmdk_name, file_size, capacity_mb, ovf_out = sys.argv[1:5]
+              xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+              <Envelope xmlns="http://schemas.dmtf.org/ovf/envelope/1" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" vmw:buildId="build-18663434">
+                <References><File ovf:href="{vmdk_name}" ovf:id="file1" ovf:size="{file_size}"/></References>
+                <DiskSection><Info>Virtual disk information</Info><Disk ovf:capacity="{capacity_mb}" ovf:capacityAllocationUnits="byte * 2^20" ovf:diskId="vmdisk1" ovf:fileRef="file1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/></DiskSection>
+                <NetworkSection><Info>The list of logical networks</Info><Network ovf:name="VM Network"><Description>The VM Network network</Description></Network></NetworkSection>
+                <VirtualSystem ovf:id="vm">
+                  <Info>A virtual machine</Info><Name>MikroTik_RouterOS_CHR</Name>
+                  <OperatingSystemSection ovf:id="100" vmw:osType="other3xLinux64Guest"><Info>The kind of installed guest operating system</Info></OperatingSystemSection>
+                  <VirtualHardwareSection>
+                    <Info>Virtual hardware requirements</Info>
+                    <System><vssd:ElementName>Virtual Hardware Family</vssd:ElementName><vssd:InstanceID>0</vssd:InstanceID><vssd:VirtualSystemIdentifier>MikroTik_RouterOS_CHR</vssd:VirtualSystemIdentifier><vssd:VirtualSystemType>vmx-10</vssd:VirtualSystemType></System>
+                    <Item><rasd:AllocationUnits>hertz * 10^6</rasd:AllocationUnits><rasd:Description>Number of Virtual CPUs</rasd:Description><rasd:ElementName>1 virtual CPU(s)</rasd:ElementName><rasd:InstanceID>1</rasd:InstanceID><rasd:ResourceType>3</rasd:ResourceType><rasd:VirtualQuantity>1</rasd:VirtualQuantity></Item>
+                    <Item><rasd:AllocationUnits>byte * 2^20</rasd:AllocationUnits><rasd:Description>Memory Size</rasd:Description><rasd:ElementName>1024MB of memory</rasd:ElementName><rasd:InstanceID>2</rasd:InstanceID><rasd:ResourceType>4</rasd:ResourceType><rasd:VirtualQuantity>1024</rasd:VirtualQuantity></Item>
+                    <Item><rasd:Address>0</rasd:Address><rasd:Description>IDE Controller</rasd:Description><rasd:ElementName>ideController0</rasd:ElementName><rasd:InstanceID>3</rasd:InstanceID><rasd:ResourceType>5</rasd:ResourceType></Item>
+                    <Item><rasd:AddressOnParent>0</rasd:AddressOnParent><rasd:ElementName>disk0</rasd:ElementName><rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource><rasd:InstanceID>4</rasd:InstanceID><rasd:Parent>3</rasd:Parent><rasd:ResourceType>17</rasd:ResourceType></Item>
+                    <Item><rasd:AddressOnParent>1</rasd:AddressOnParent><rasd:AutomaticAllocation>true</rasd:AutomaticAllocation><rasd:Connection>VM Network</rasd:Connection><rasd:Description>VmxNet3 ethernet adapter</rasd:Description><rasd:ElementName>ethernet0</rasd:ElementName><rasd:InstanceID>5</rasd:InstanceID><rasd:ResourceSubType>VmxNet3</rasd:ResourceSubType><rasd:ResourceType>10</rasd:ResourceType><vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="160"/><vmw:Config ovf:required="false" vmw:key="connectable.allowGuestControl" vmw:value="true"/></Item>
+                    <vmw:Config ovf:required="false" vmw:key="firmware" vmw:value="bios"/>
+                  </VirtualHardwareSection>
+                </VirtualSystem>
+              </Envelope>"""
+              with open(ovf_out, 'w', encoding='utf-8') as f:
+                  f.write(textwrap.dedent(xml_content).strip())
+              EOF
+              
+              python3 build_ovf.py "disk1.vmdk" "$FILE_SIZE" "$CAPACITY_MB" "$OVF_NAME"
+              sudo tar -cvf "$OVA_NAME" "$OVF_NAME" "disk1.vmdk"
+              
+              # 压缩出包
+              zip -q "$IMG_NAME.zip" "$IMG_NAME"
+              zip -q "$VMDK_NAME.zip" "$VMDK_NAME"
+              zip -q "$OVA_NAME.zip" "$OVA_NAME"
+              
+              mv "$IMG_NAME.zip" output_images/
+              mv "$VMDK_NAME.zip" output_images/
+              mv "$OVA_NAME.zip" output_images/
+              
+          else
+              # 🌟 ARM64 的专属打包逻辑 (仅需 RAW 和 VDI)
+              IMG_NAME="chr-${VERSION}-arm64.img"
+              VDI_NAME="chr-${VERSION}-arm64.vdi"
+              
+              sudo qemu-img convert -f raw -O vdi "$IMG_NAME" "$VDI_NAME"
+              
+              # 压缩出包
+              zip -q "$IMG_NAME.zip" "$IMG_NAME"
+              zip -q "$VDI_NAME.zip" "$VDI_NAME"
+              
+              mv "$IMG_NAME.zip" output_images/
+              mv "$VDI_NAME.zip" output_images/
+          fi
+
+      - name: 📤 上传到 GitHub Artifacts 供本地下载测试
+        uses: actions/upload-artifact@v4
+        with:
+          name: chr-${{ matrix.arch }}-test-images-${{ env.VERSION }}
+          path: output_images/
+          retention-days: 3
