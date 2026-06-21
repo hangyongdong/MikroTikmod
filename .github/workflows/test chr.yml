@@ -102,14 +102,14 @@ jobs:
           cp chr.img "$IMG_NAME"
           
           sudo qemu-nbd -c /dev/nbd1 -f raw "$IMG_NAME"
-          sleep 2 # 给内核一点时间映射出 /dev/nbd1p1 和 p2
+          sleep 2
           
           echo ">>> 正在探测并 Patch UEFI 引导程序..."
           sudo mkdir -p ./chr/boot
           sudo mount /dev/nbd1p1 ./chr/boot/
           
           # =========================================================
-          # 🌟 修复 1：针对不同架构的文件系统差异，采用双轨 Patch 策略
+          # 🌟 核心分流：x86 使用 ext3 底层块修改，arm64 使用 FAT32 原生文件修改
           # =========================================================
           if [ "${ARCH}" == "x86" ]; then
               EFI_FILE=$(cd ./chr/boot && find . -iname "bootx64.efi" | head -n 1 | sed 's|^\./||')
@@ -123,19 +123,26 @@ jobs:
                   echo ">>> ⚠️ 未找到 EFI 引导文件！"
               fi
           else
-              # ARM64: 分区为 FAT32，直接在挂载状态下使用 netinstall (file) 模式进行二进制替换！
+              # ARM64: 分区为 FAT32，直接用纯 Python 脚本对挂载的文件进行二进制公钥替换！
               EFI_FILE=$(cd ./chr/boot && find . -iname "bootaa64.efi" | head -n 1 | sed 's|^\./||')
               
-              if [ -n "$EFI_FILE" ] && [ -f "patch.py" ]; then
-                  echo ">>> [arm64] 找到 $EFI_FILE ，执行原生 File 模式 Patch..."
-                  sudo -E python3 patch.py netinstall "./chr/boot/$EFI_FILE"
+              if [ -n "$EFI_FILE" ]; then
+                  echo ">>> [arm64] 找到 $EFI_FILE ，开始执行原生 File 模式 Patch..."
+                  
+
+                  
+                  # 调用脚本，直接替换 FAT32 挂载目录下的 EFI 文件
+                  sudo -E python3 patch_efi.py "./chr/boot/$EFI_FILE"
               else
                   echo ">>> ⚠️ 未找到 EFI 引导文件！"
               fi
-              # Patch 完成后再卸载
+              # ARM64 Patch 完成后再卸载
               sudo umount /dev/nbd1p1
           fi
           
+          # =========================================================
+          # 🌟 继续执行公共的系统分区格式化与植入
+          # =========================================================
           echo ">>> 正在重建并格式化系统分区..."
           sudo mkfs.ext4 -F -L "RouterOS" -m 0 /dev/nbd1p2
           
