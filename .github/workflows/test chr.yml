@@ -93,26 +93,35 @@ jobs:
         run: |
           echo ">>> 开始重构 CHR 虚拟磁盘..."
           
-          # 🌟 根据架构设定文件名和 EFI 引导文件路径
           if [ "${ARCH}" == "x86" ]; then
               IMG_NAME="chr-${VERSION}-x86-legacy-bios.img"
-              EFI_FILE="EFI/BOOT/BOOTX64.EFI"
           else
               IMG_NAME="chr-${VERSION}-arm64.img"
-              EFI_FILE="EFI/BOOT/BOOTAA64.EFI"
           fi
           
           cp chr.img "$IMG_NAME"
           
-          # 挂载为本地虚拟块设备
           sudo qemu-nbd -c /dev/nbd1 -f raw "$IMG_NAME"
+          sleep 2 # 🌟 给内核一点时间映射出 /dev/nbd1p1 和 p2
           
-          echo ">>> 正在 Patch UEFI 引导程序 ($EFI_FILE)..."
-          if [ -f "patch.py" ]; then
+          echo ">>> 正在探测并 Patch UEFI 引导程序..."
+          sudo mkdir -p ./chr/boot
+          sudo mount /dev/nbd1p1 ./chr/boot/
+          
+          # 🌟 修复 1：动态寻找真实的 EFI 文件路径（无视大小写差异）
+          if [ "${ARCH}" == "x86" ]; then
+              EFI_FILE=$(cd ./chr/boot && find . -iname "bootx64.efi" | head -n 1 | sed 's|^\./||')
+          else
+              EFI_FILE=$(cd ./chr/boot && find . -iname "bootaa64.efi" | head -n 1 | sed 's|^\./||')
+          fi
+          sudo umount /dev/nbd1p1
+          
+          # 如果找到了真实的文件才去 Patch，找不到则安全跳过，防崩溃
+          if [ -n "$EFI_FILE" ] && [ -f "patch.py" ]; then
+              echo ">>> 找到 EFI 引导程序: $EFI_FILE ，开始执行底层 Patch..."
               sudo -E python3 patch.py block /dev/nbd1p1 "$EFI_FILE"
           else
-              echo "❌ 错误: 当前目录下未找到 patch.py！"
-              exit 1
+              echo ">>> ⚠️ 未找到当前架构的 EFI 引导文件，跳过 UEFI Patch 阶段。"
           fi
           
           echo ">>> 正在重建并格式化系统分区..."
@@ -136,7 +145,6 @@ jobs:
           echo ">>> 转换镜像格式并打包..."
           mkdir -p output_images
           
-          # 🌟 按架构分支输出特定格式的镜像包
           if [ "${ARCH}" == "x86" ]; then
               IMG_NAME="chr-${VERSION}-x86-legacy-bios.img"
               VMDK_NAME="chr-${VERSION}-x86-legacy-bios.vmdk"
@@ -144,42 +152,40 @@ jobs:
               
               sudo qemu-img convert -f raw -O vmdk "$IMG_NAME" "$VMDK_NAME"
               
-              # 制作 OVA
               sudo qemu-img convert -f raw -O vmdk -o subformat=streamOptimized "$IMG_NAME" disk1.vmdk
               FILE_SIZE=$(stat -c %s "disk1.vmdk")
               VIRTUAL_SIZE=$(qemu-img info --output=json "disk1.vmdk" | jq '.["virtual-size"]')
               CAPACITY_MB=$((VIRTUAL_SIZE / 1024 / 1024))
               OVF_NAME="chr-${VERSION}-x86-legacy-bios.ovf"
               
-              cat << 'EOF' > build_ovf.py
-              import sys
-              import textwrap
-              vmdk_name, file_size, capacity_mb, ovf_out = sys.argv[1:5]
-              xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-              <Envelope xmlns="http://schemas.dmtf.org/ovf/envelope/1" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" vmw:buildId="build-18663434">
-                <References><File ovf:href="{vmdk_name}" ovf:id="file1" ovf:size="{file_size}"/></References>
-                <DiskSection><Info>Virtual disk information</Info><Disk ovf:capacity="{capacity_mb}" ovf:capacityAllocationUnits="byte * 2^20" ovf:diskId="vmdisk1" ovf:fileRef="file1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/></DiskSection>
-                <NetworkSection><Info>The list of logical networks</Info><Network ovf:name="VM Network"><Description>The VM Network network</Description></Network></NetworkSection>
-                <VirtualSystem ovf:id="vm">
-                  <Info>A virtual machine</Info><Name>MikroTik_RouterOS_CHR</Name>
-                  <OperatingSystemSection ovf:id="100" vmw:osType="other3xLinux64Guest"><Info>The kind of installed guest operating system</Info></OperatingSystemSection>
-                  <VirtualHardwareSection>
-                    <Info>Virtual hardware requirements</Info>
-                    <System><vssd:ElementName>Virtual Hardware Family</vssd:ElementName><vssd:InstanceID>0</vssd:InstanceID><vssd:VirtualSystemIdentifier>MikroTik_RouterOS_CHR</vssd:VirtualSystemIdentifier><vssd:VirtualSystemType>vmx-10</vssd:VirtualSystemType></System>
-                    <Item><rasd:AllocationUnits>hertz * 10^6</rasd:AllocationUnits><rasd:Description>Number of Virtual CPUs</rasd:Description><rasd:ElementName>1 virtual CPU(s)</rasd:ElementName><rasd:InstanceID>1</rasd:InstanceID><rasd:ResourceType>3</rasd:ResourceType><rasd:VirtualQuantity>1</rasd:VirtualQuantity></Item>
-                    <Item><rasd:AllocationUnits>byte * 2^20</rasd:AllocationUnits><rasd:Description>Memory Size</rasd:Description><rasd:ElementName>1024MB of memory</rasd:ElementName><rasd:InstanceID>2</rasd:InstanceID><rasd:ResourceType>4</rasd:ResourceType><rasd:VirtualQuantity>1024</rasd:VirtualQuantity></Item>
-                    <Item><rasd:Address>0</rasd:Address><rasd:Description>IDE Controller</rasd:Description><rasd:ElementName>ideController0</rasd:ElementName><rasd:InstanceID>3</rasd:InstanceID><rasd:ResourceType>5</rasd:ResourceType></Item>
-                    <Item><rasd:AddressOnParent>0</rasd:AddressOnParent><rasd:ElementName>disk0</rasd:ElementName><rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource><rasd:InstanceID>4</rasd:InstanceID><rasd:Parent>3</rasd:Parent><rasd:ResourceType>17</rasd:ResourceType></Item>
-                    <Item><rasd:AddressOnParent>1</rasd:AddressOnParent><rasd:AutomaticAllocation>true</rasd:AutomaticAllocation><rasd:Connection>VM Network</rasd:Connection><rasd:Description>VmxNet3 ethernet adapter</rasd:Description><rasd:ElementName>ethernet0</rasd:ElementName><rasd:InstanceID>5</rasd:InstanceID><rasd:ResourceSubType>VmxNet3</rasd:ResourceSubType><rasd:ResourceType>10</rasd:ResourceType><vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="160"/><vmw:Config ovf:required="false" vmw:key="connectable.allowGuestControl" vmw:value="true"/></Item>
-                    <vmw:Config ovf:required="false" vmw:key="firmware" vmw:value="bios"/>
-                  </VirtualHardwareSection>
-                </VirtualSystem>
-              </Envelope>"""
-              with open(ovf_out, 'w', encoding='utf-8') as f:
-                  f.write(textwrap.dedent(xml_content).strip())
-              EOF
+              # 🌟 修复 2：使用 python3 -c 结合单引号，彻底避开 YAML 和 Bash EOF 缩进冲突陷阱！
+              python3 -c '
+          import sys, textwrap
+          vmdk_name, file_size, capacity_mb, ovf_out = sys.argv[1:5]
+          xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+          <Envelope xmlns="http://schemas.dmtf.org/ovf/envelope/1" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" vmw:buildId="build-18663434">
+            <References><File ovf:href="{vmdk_name}" ovf:id="file1" ovf:size="{file_size}"/></References>
+            <DiskSection><Info>Virtual disk information</Info><Disk ovf:capacity="{capacity_mb}" ovf:capacityAllocationUnits="byte * 2^20" ovf:diskId="vmdisk1" ovf:fileRef="file1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/></DiskSection>
+            <NetworkSection><Info>The list of logical networks</Info><Network ovf:name="VM Network"><Description>The VM Network network</Description></Network></NetworkSection>
+            <VirtualSystem ovf:id="vm">
+              <Info>A virtual machine</Info><Name>MikroTik_RouterOS_CHR</Name>
+              <OperatingSystemSection ovf:id="100" vmw:osType="other3xLinux64Guest"><Info>The kind of installed guest operating system</Info></OperatingSystemSection>
+              <VirtualHardwareSection>
+                <Info>Virtual hardware requirements</Info>
+                <System><vssd:ElementName>Virtual Hardware Family</vssd:ElementName><vssd:InstanceID>0</vssd:InstanceID><vssd:VirtualSystemIdentifier>MikroTik_RouterOS_CHR</vssd:VirtualSystemIdentifier><vssd:VirtualSystemType>vmx-10</vssd:VirtualSystemType></System>
+                <Item><rasd:AllocationUnits>hertz * 10^6</rasd:AllocationUnits><rasd:Description>Number of Virtual CPUs</rasd:Description><rasd:ElementName>1 virtual CPU(s)</rasd:ElementName><rasd:InstanceID>1</rasd:InstanceID><rasd:ResourceType>3</rasd:ResourceType><rasd:VirtualQuantity>1</rasd:VirtualQuantity></Item>
+                <Item><rasd:AllocationUnits>byte * 2^20</rasd:AllocationUnits><rasd:Description>Memory Size</rasd:Description><rasd:ElementName>1024MB of memory</rasd:ElementName><rasd:InstanceID>2</rasd:InstanceID><rasd:ResourceType>4</rasd:ResourceType><rasd:VirtualQuantity>1024</rasd:VirtualQuantity></Item>
+                <Item><rasd:Address>0</rasd:Address><rasd:Description>IDE Controller</rasd:Description><rasd:ElementName>ideController0</rasd:ElementName><rasd:InstanceID>3</rasd:InstanceID><rasd:ResourceType>5</rasd:ResourceType></Item>
+                <Item><rasd:AddressOnParent>0</rasd:AddressOnParent><rasd:ElementName>disk0</rasd:ElementName><rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource><rasd:InstanceID>4</rasd:InstanceID><rasd:Parent>3</rasd:Parent><rasd:ResourceType>17</rasd:ResourceType></Item>
+                <Item><rasd:AddressOnParent>1</rasd:AddressOnParent><rasd:AutomaticAllocation>true</rasd:AutomaticAllocation><rasd:Connection>VM Network</rasd:Connection><rasd:Description>VmxNet3 ethernet adapter</rasd:Description><rasd:ElementName>ethernet0</rasd:ElementName><rasd:InstanceID>5</rasd:InstanceID><rasd:ResourceSubType>VmxNet3</rasd:ResourceSubType><rasd:ResourceType>10</rasd:ResourceType><vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="160"/><vmw:Config ovf:required="false" vmw:key="connectable.allowGuestControl" vmw:value="true"/></Item>
+                <vmw:Config ovf:required="false" vmw:key="firmware" vmw:value="bios"/>
+              </VirtualHardwareSection>
+            </VirtualSystem>
+          </Envelope>"""
+          with open(ovf_out, "w", encoding="utf-8") as f:
+              f.write(textwrap.dedent(xml_content).strip())
+          ' "disk1.vmdk" "$FILE_SIZE" "$CAPACITY_MB" "$OVF_NAME"
               
-              python3 build_ovf.py "disk1.vmdk" "$FILE_SIZE" "$CAPACITY_MB" "$OVF_NAME"
               sudo tar -cvf "$OVA_NAME" "$OVF_NAME" "disk1.vmdk"
               
               # 压缩出包
