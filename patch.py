@@ -1,5 +1,5 @@
 import subprocess,lzma
-import struct,os,re
+import struct,os,re,sys
 import shutil  # [新增] 用于物理拷贝文件
 from npk import NovaPackage,NpkPartID,NpkFileContainer
 
