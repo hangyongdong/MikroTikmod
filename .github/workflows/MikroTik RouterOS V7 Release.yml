@@ -1,8 +1,8 @@
-name: MikroTik RouterOS V7 Release Test
+name: MikroTik RouterOS V7 Release
 
 on:
   schedule:
-    - cron: '0 4 * * *'
+    - cron: '0 10 * * *'
   workflow_dispatch:
     inputs:
       version:
