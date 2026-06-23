@@ -1,4 +1,4 @@
-name: MikroTik RouterOS V7 Release & Publisher
+name: MikroTik RouterOS V7 Release Test
 
 on:
   schedule:
