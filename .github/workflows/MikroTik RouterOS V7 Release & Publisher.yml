@@ -225,7 +225,7 @@ jobs:
           sudo mkfs.ext4 -F -L "RouterOS" -m 0 /dev/nbd1p2
           sudo mkdir -p ./chr/routeros && sudo mount /dev/nbd1p2 ./chr/routeros/
           sudo mkdir -p ./chr/routeros/{var/pdb/system,boot,rw/disk}
-          sudo cp ./all_packages_arm64/routeros-${VERSION}-${ARCH}-patch.npk ./chr/routeros/var/pdb/system/image
+          sudo cp ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk ./chr/routeros/var/pdb/system/image
           echo -e '#!/bin/sh\n' | sudo tee ./chr/routeros/rw/disk/rc.local
           sudo umount /dev/nbd1p2
           sudo qemu-nbd -d /dev/nbd1
@@ -302,7 +302,7 @@ jobs:
           sudo mkfs.ext4 -F -L "RouterOS" -m 0 /dev/nbd1p2
           sudo mkdir -p ./chr/routeros && sudo mount /dev/nbd1p2 ./chr/routeros/
           sudo mkdir -p ./chr/routeros/{var/pdb/system,boot,rw/disk}
-          sudo cp ./all_packages_x86/routeros-${VERSION}-${ARCH}-patch.npk ./chr/routeros/var/pdb/system/image
+          sudo cp ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk ./chr/routeros/var/pdb/system/image
           echo -e '#!/bin/sh\n' | sudo tee ./chr/routeros/rw/disk/rc.local
           sudo umount /dev/nbd1p2
           sudo qemu-nbd -d /dev/nbd1
