@@ -238,5 +238,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: chr-x86-test-images-${{ env.VERSION }}
-          path: output_images/
+          path: output_images/ all_packages/
           retention-days: 3  # 测试文件保留 3 天自动删除
