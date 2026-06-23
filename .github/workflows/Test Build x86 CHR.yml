@@ -135,6 +135,7 @@ jobs:
           # 🌟 核心修改 2：调用和复制 x86 版本的 busybox
           # =========================================================
           if [ -f "./busybox/busybox_x86" ]; then
+              sudo chmod +x ./busybox/busybox_x86 
               sudo cp ./busybox/busybox_x86 ./option-root/bin/busybox
               sudo chmod +x ./option-root/bin/busybox
               
