@@ -432,21 +432,37 @@ def patch_kernel(data: bytes, key_dict):
 #        print(f"[!] 警告：未在仓库根目录下找到预制的 {custom_loader_source}，跳过覆盖！")
 
 def patch_loader(loader_file):
-    # 1. 获取当前架构并清理 (如 arm64, mmips)
-    arch = os.getenv('ARCH', 'x86').replace('-', '')
+
+    # ==========================================
+    # 🌟 优化 1：双重架构探测机制
+    # ==========================================
+    arch = os.getenv('ARCH')
+    if not arch:
+        # 如果没有读取到环境变量，智能从命令行运行参数中推断架构
+        full_args = " ".join(sys.argv).lower()
+        if "arm64" in full_args:
+            arch = "arm64"
+        elif "x86" in full_args:
+            arch = "x86"
+        elif "mipsbe" in full_args:
+            arch = "mipsbe"
+        else:
+            arch = "x86"  # 终极保底值
+            
+    arch = arch.replace('-', '')
     
-    # 2. 获取当前版本号字符串 (如 "7.21.3")
+    # 2. 获取当前版本号字符串 (如 "7.21.3" 或 "7.24beta3")
     version_str = os.getenv('VERSION', '7.22.3')
     
-    # 3. 提取版本号的前两个数字，例如 "7.21.3" -> ['7', '21', '3'] -> "7.21"
+    # 3. 提取版本号的前两个数字，例如 "7.24beta3" -> ['7', '24', '3'] -> "7.24"
     nums = re.findall(r'\d+', version_str)
     if len(nums) >= 2:
-        version_major_minor = f"{nums[0]}.{nums[1]}"  # 提取出 "7.21"、"7.22"、"7.20"
+        version_major_minor = f"{nums[0]}.{nums[1]}"  # 提取出 "7.21"、"7.24"
     else:
         version_major_minor = "7.22"  # 默认安全回退值
         print(f"[!] 警告：未能成功解析版本号 '{version_str}'，默认使用 {version_major_minor}")
     
-    # 4. 动态拼接文件名（例如: loader_arm64_7.21 或 loader_mmips_7.20）
+    # 4. 动态拼接文件名（例如: loader_arm64_7.24）
     filename = f"loader_{arch}_{version_major_minor}"
     
     # 5. 拼接至仓库根目录下的 loader 文件夹中
@@ -454,14 +470,14 @@ def patch_loader(loader_file):
     
     # 6. 执行文件拷贝与权限赋予
     if os.path.exists(custom_loader_source):
-        print(f"[*] 检测到版本为 {version_str}，正在从 ./loader 目录拷贝 {custom_loader_source} 替换原文件...")
+        print(f"[*] 成功识别版本 v{version_str} ({arch}架构)，正在拷贝 {custom_loader_source} ...")
         shutil.copy2(custom_loader_source, loader_file)
         
         # 强制赋予 0755 可执行权限
         os.chmod(loader_file, 0o755)
         print(f"[+] 替换成功并已成功赋予 0755 执行权限！")
     else:
-        print(f"[!] 警告：未在 ./loader 目录下找到预制的 {custom_loader_source}，跳过覆盖！")
+        print(f"[!] 警告：未在仓库目录下找到预制的引导文件 {custom_loader_source} ，跳过覆盖！")
 
 
 #def patch_squashfs(path, key_dict):
