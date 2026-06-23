@@ -82,6 +82,87 @@ jobs:
           sudo -E python3 npk.py sign "$file" "$file"
           done
 
+          echo ">>> 6. 打包option 与 mihomo (x86)..."
+          sudo mkdir -p ./option-root/bin/
+          sudo mkdir -p ./mihomo-root/bin/
+          
+          echo ">>> 正在克隆官方 mihomo 源码仓库.."
+          git clone --depth 1 -b Alpha https://github.com/MetaCubeX/mihomo.git mihomo_src
+          
+          if [ ! -d "mihomo_src" ]; then
+              echo "!!! 克隆仓库失败，请检查网络连接或仓库地址"
+              exit 1
+          fi
+
+          echo ">>> 正在调用独立脚本 Patch 修改 constant/path.go ..."
+          sudo python3 patch_mihomo_path.py ./mihomo_src/constant/path.go
+          cd mihomo_src
+
+          echo ">>> 正在注入 RouterOS NPK 专属 SSL 证书路径..."
+          cat << 'EOF' > init_env.go
+          package main
+
+          import "os"
+
+          func init() {
+              // NPK 安装后会被挂载在 /pckg/mihomo/ 目录下
+              os.Setenv("SSL_CERT_FILE", "/pckg/mihomo/certs/cacert.pem")
+          }
+          EOF
+
+          # =========================================================
+          # 🌟 核心修改 1：改变 Go 的目标架构为 386 (标准 x86 兼容模式)
+          # 注: 若您确定只用于 64 位 CHR，此处 GOARCH 也可以写为 amd64
+          # =========================================================
+          GOOS=linux GOARCH=386 go build -ldflags "-s -w" -o ../mihomo_temp main.go init_env.go
+          cd ..
+          rm -rf mihomo_src          
+          if [ ! -f "mihomo_temp" ]; then
+              echo "!!! Go 编译失败，请检查上方编译日志"
+              exit 1
+          fi          
+          sudo mv mihomo_temp ./mihomo-root/bin/mihomo
+          sudo chmod +x ./mihomo-root/bin/mihomo          
+          
+          echo ">>> 正在打包系统根证书 (cacert.pem)..."
+          sudo mkdir -p ./mihomo-root/certs
+          sudo curl -sL "https://curl.se/ca/cacert.pem" -o ./mihomo-root/certs/cacert.pem
+          
+          echo ">>> Mihomo 编译与证书融合成功！"
+          
+          echo ">>> 正在制作option NPK..."
+          # =========================================================
+          # 🌟 核心修改 2：调用和复制 x86 版本的 busybox
+          # =========================================================
+          if [ -f "./busybox/busybox_x86" ]; then
+              sudo cp ./busybox/busybox_x86 ./option-root/bin/busybox
+              sudo chmod +x ./option-root/bin/busybox
+              
+              # 直接用刚拷进去的 x86 版本生成命令列表
+              COMMANDS=$(./busybox/busybox_x86 --list)
+              for cmd in $COMMANDS; do
+                  sudo ln -sf /pckg/option/bin/busybox ./option-root/bin/$cmd                  
+              done             
+          fi
+          
+          TEMPLATE_NPK=$(find ./all_packages -name "gps-*.npk" | head -n 1)
+          if [ -z "$TEMPLATE_NPK" ]; then 
+              TEMPLATE_NPK="routeros-${VERSION}-${ARCH}.npk"
+          fi
+          
+          echo ">>> 生成 squashfs 镜像..."
+          sudo mksquashfs option-root option.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
+          sudo mksquashfs mihomo-root mihomo.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
+
+          # =========================================================
+          # 🌟 核心修改 3：修改 NPK 打包描述文本
+          # =========================================================
+          echo ">>> 打包 option NPK..."
+          sudo -E python3 npk.py create "$TEMPLATE_NPK" "./all_packages/option-${VERSION}-${ARCH}.npk" option ./option.sfs -desc="Busybox for x86"
+
+          echo ">>> 打包 [mihomo NPK] ..."
+          sudo -E python3 npk.py create "$TEMPLATE_NPK" "./all_packages/mihomo-${VERSION}-${ARCH}.npk" mihomo ./mihomo.sfs -desc="Mihomo proxy core"
+
       - name: 挂载、劫持引导并重构 CHR 磁盘镜像
         run: |
           echo ">>> 开始重构 CHR 虚拟磁盘..."
