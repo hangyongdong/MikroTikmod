@@ -227,7 +227,8 @@ jobs:
           sudo rm $VMDK $OVF
           sudo zip $OVA.zip $OVA
           sudo rm $OVA
-          sudo zip all_packages.zip all_packages/
+          cd ./all_packages
+          sudo zip ../all_packages.zip *.npk >/dev/null
 
           echo ">>> 准备输出目录..."
           mkdir -p output_images
