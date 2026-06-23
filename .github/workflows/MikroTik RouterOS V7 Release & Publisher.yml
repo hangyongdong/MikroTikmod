@@ -228,7 +228,7 @@ jobs:
               done             
           fi
           
-          TEMPLATE_NPK=$(find ./all_packages-${ARCH} -name "gps-*.npk" | head -n 1)
+          TEMPLATE_NPK=$(find ./all_packages_${ARCH} -name "gps-*.npk" | head -n 1)
           if [ -z "$TEMPLATE_NPK" ]; then 
               TEMPLATE_NPK="routeros-${VERSION}-${ARCH}.npk"
           fi
@@ -375,7 +375,7 @@ jobs:
               done             
           fi
           
-          TEMPLATE_NPK=$(find ./all_packages -name "gps-*.npk" | head -n 1)
+          TEMPLATE_NPK=$(find ./all_packages_x86 -name "gps-*.npk" | head -n 1)
           if [ -z "$TEMPLATE_NPK" ]; then 
               TEMPLATE_NPK="routeros-${VERSION}-${ARCH}.npk"
           fi
