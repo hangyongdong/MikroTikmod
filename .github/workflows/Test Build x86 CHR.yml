@@ -231,6 +231,7 @@ jobs:
           sudo zip ../all_packages.zip *.npk >/dev/null
 
           echo ">>> 准备输出目录..."
+          cd ..
           mkdir -p output_images
           sudo mv chr-${VERSION}-x86-legacy-bios.qcow2 output_images/
           sudo mv chr-${VERSION}-x86-legacy-bios.vmdk output_images/
