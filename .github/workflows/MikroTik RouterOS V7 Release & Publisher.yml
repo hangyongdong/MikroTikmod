@@ -330,7 +330,6 @@ jobs:
           
           # [处理 ARM64]
           cp ./all_packages_arm64/*.npk ./vps_upload/${VERSION}/
-          mv ./vps_upload/${VERSION}/routeros-${VERSION}-arm64-patch.npk ./vps_upload/${VERSION}/routeros-${VERSION}-arm64.npk
           if [ -f "./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64-R.npk" ]; then
               mv ./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64-R.npk ./vps_upload/extra/${VERSION}/
           fi
@@ -340,7 +339,7 @@ jobs:
           
           # [处理 X86，统一去除 -x86 后缀，完全匹配官方命名]
           cp ./all_packages_x86/*.npk ./vps_upload/${VERSION}/
-          cp ./all_packages_x86/routeros-${VERSION}-x86-patch.npk ./vps_upload/${VERSION}/routeros-${VERSION}.npk
+          cp ./all_packages_x86/routeros-${VERSION}-x86.npk ./vps_upload/${VERSION}/routeros-${VERSION}.npk
           # x86 的主包已经更名，删除原本带架构的中间产物
           rm -f ./vps_upload/${VERSION}/routeros-${VERSION}-x86*.npk
           
