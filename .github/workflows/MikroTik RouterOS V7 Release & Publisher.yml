@@ -150,7 +150,8 @@ jobs:
           sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_arm64/
           
           curl -L -# -o chr_arm64.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}-${ARCH}.img.zip"
-          sudo unzip -q chr_arm64.img.zip && mv *.img chr_arm64.img
+          sudo unzip -q chr_arm64.img.zip && mv chr-${VERSION}-${ARCH}.img chr_arm64.img
+          rm -f chr_arm64.img.zip
           
           # 核心系统包 Patch 与签名
           sudo -E python3 patch.py npk ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk
@@ -252,7 +253,8 @@ jobs:
           sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_x86/
           
           curl -L -# -o chr_x86.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img.zip"
-          sudo unzip -q chr_x86.img.zip && mv *.img chr_x86.img
+          sudo unzip -q chr_x86.img.zip && mv chr-${VERSION}.img chr_x86.img
+          rm -f chr_x86.img.zip
           
           sudo -E python3 patch.py npk ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk
           for f in ./all_packages_x86/*.npk; do sudo -E python3 npk.py sign "$f" "$f"; done
