@@ -285,6 +285,7 @@ jobs:
           
           # 清理临时目录
           sudo rm -rf ./mihomo-root ./option-root ./mihomo_src
+          sudo rm -f option.sfs  mihomo.sfs
 
       # ==========================================
       # 🌟 处理 x86 架构 (规范命名)
@@ -388,10 +389,14 @@ jobs:
           # 🌟 核心修改 3：修改 NPK 打包描述文本
           # =========================================================
           echo ">>> 打包 option NPK..."
-          sudo -E python3 npk.py create "$TEMPLATE_NPK" "./all_packages_x86/option_${VERSION}.npk" option ./option.sfs -desc="Busybox for x86"
+          sudo -E python3 npk.py create "$TEMPLATE_NPK" "./all_packages_x86/option-${VERSION}.npk" option ./option.sfs -desc="Busybox for x86"
 
           echo ">>> 打包 [mihomo NPK] ..."
           sudo -E python3 npk.py create "$TEMPLATE_NPK" "./all_packages_x86/mihomo-${VERSION}.npk" mihomo ./mihomo.sfs -desc="Mihomo proxy core"
+
+          # 清理临时目录
+          sudo rm -rf ./mihomo-root ./option-root ./mihomo_src
+          sudo rm -f option.sfs  mihomo.sfs
 
           # 重构 x86 CHR 镜像 (block 模式)
           cp chr_x86.img chr-${VERSION}-x86-legacy-bios.img
