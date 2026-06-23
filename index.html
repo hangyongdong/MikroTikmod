@@ -12,9 +12,7 @@
         tailwind.config = {
             theme: {
                 fontFamily: {
-                    // 常规字体：使用 Manrope，配合中文字体降级
                     sans: ['Manrope', '"PingFang SC"', '"Microsoft YaHei"', 'sans-serif'],
-                    // 等宽字体：使用 JetBrains Mono，配合中文字体降级
                     mono: ['"JetBrains Mono"', '"PingFang SC"', '"Microsoft YaHei"', 'monospace']
                 }
             }
@@ -25,19 +23,15 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M 50,8 L 85,28 L 85,72 L 50,92 L 15,72 L 15,28 Z' fill='%23111111' stroke='%23111111' stroke-width='8' stroke-linejoin='round'/><path d='M 25,64 L 25,36 L 50,22 L 75,36 L 75,64 M 25,36 L 50,50 L 75,36 M 50,50 L 50,78' fill='none' stroke='white' stroke-width='11' stroke-linecap='round' stroke-linejoin='round'/></svg>">
     
     <style>
-        /* 恢复默认的 sans 字体作为全局字体 */
         body { background-color: #fafafa; color: #111; }
-        
         .btn-active { border-color: #111 !important; color: #111 !important; font-weight: 600; box-shadow: inset 0 0 0 1px #111; }
         .btn-inactive { border-color: #e5e7eb; color: #4b5563; }
         .btn-inactive:hover { border-color: #9ca3af; color: #111; }
-        
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         select { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
-        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -47,21 +41,18 @@
 </head>
 <body class="antialiased min-h-screen flex flex-col">
 
-<!-- 顶部占位/导航 -->
+    <!-- 顶部占位/导航 -->
     <header class="w-full bg-white border-b border-gray-200 py-6">
         <div class="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 sm:gap-0">
-            
             <div class="flex items-baseline gap-3">
                 <h1 class="text-4xl font-bold tracking-tight font-mono leading-none">RouterOS</h1>
                 <div class="text-[11px] text-gray-400 font-mono tracking-widest uppercase mb-0.5">Custom Mirror Node</div>
             </div>
-
             <div>
                 <div class="text-[10px] font-mono font-bold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-sm uppercase tracking-wider" title="本站资源仅限交流学习">
                     For Educational Purposes Only
                 </div>
             </div>
-
         </div>
     </header>
 
@@ -72,9 +63,7 @@
                 <label class="block text-xs font-mono text-gray-500 mb-3 tracking-widest">Architecture:</label>
                 <div class="flex flex-wrap gap-2">
                     <button id="arch-arm64" onclick="switchArch('arm64')" class="px-5 py-2 text-sm border bg-white btn-active cursor-default uppercase transition-colors">ARM64</button>
-                    <button id="arch-arm" onclick="switchArch('arm')" class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 hover:text-black transition-colors cursor-pointer uppercase">ARM</button>
-                    <button id="arch-mipsbe" onclick="switchArch('mipsbe')" class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 hover:text-black transition-colors cursor-pointer uppercase">MIPSBE</button>
-                    <button id="arch-x86" onclick="switchArch('x86')" class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 hover:text-black transition-colors cursor-pointer uppercase">X86</button>
+                    <button id="arch-chr" onclick="switchArch('chr')" class="px-5 py-2 text-sm border bg-gray-50 text-gray-400 border-gray-200 hover:text-black transition-colors cursor-pointer uppercase">CHR</button>
                 </div>
             </div>
 
@@ -123,22 +112,22 @@
             <div id="data-grid" class="grid grid-cols-1 md:grid-cols-3 gap-12 hidden">
                 
                 <div>
-                    <h3 class="text-base font-bold text-gray-800 font-mono tracking-normal mb-6 uppercase">System Package</h3>
+                    <h3 class="text-sm font-bold text-gray-800 font-mono tracking-normal mb-6 uppercase">System Package</h3>
                     <div id="col-system" class="space-y-4"></div>
                 </div>
 
                 <div>
-                    <h3 class="text-base font-bold text-gray-800 font-mono tracking-normal mb-6 uppercase">Extra Packages</h3>
+                    <h3 class="text-sm font-bold text-gray-800 font-mono tracking-normal mb-6 uppercase">Extra Packages</h3>
                     <div id="col-extra" class="grid grid-cols-2 gap-y-4 gap-x-6"></div>
-                    <div class="mt-6 pt-4 border-t border-gray-200 flex items-center text-base text-gray-600 font-mono">
-                        <i class="fa-solid fa-arrow-right mr-2 text-base text-black"></i>
+                    <div class="mt-6 pt-4 border-t border-gray-200 flex items-center text-sm text-gray-600 font-mono">
+                        <i class="fa-solid fa-arrow-right mr-2 text-sm text-black"></i>
                         <span class="text-black">More about&nbsp;</span>
                         <a href="https://help.mikrotik.com/docs/display/ROS/Packages" target="_blank" class="text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors">packages</a>
                     </div>
                 </div>
 
                 <div>
-                    <h3 class="text-base font-bold text-gray-800 font-mono tracking-normal mb-6 uppercase">More</h3>
+                    <h3 class="text-sm font-bold text-gray-800 font-mono tracking-normal mb-6 uppercase">More</h3>
                     <div id="col-more" class="space-y-5"></div>
                 </div>
 
@@ -158,9 +147,9 @@
 
     </main>
 
-    <!-- 算号器弹窗 (极简极客风重塑) -->
+    <!-- 算号器弹窗 -->
     <div id="generator-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 opacity-0 transition-opacity duration-300">
-        <div class="bg-white border border-gray-300 shadow-2xl w-full max-w-sm flex flex-col relative transform scale-95 transition-transform duration-300 rounded-sm" id="generator-card">
+        <div class="bg-white border border-gray-300 shadow-2xl w-full max-w-md flex flex-col relative transform scale-95 transition-transform duration-300 rounded-sm" id="generator-card">
             
             <div class="flex justify-between items-center p-5 border-b border-gray-200 bg-gray-50">
                 <h3 class="text-sm font-bold font-mono tracking-widest text-gray-800 uppercase"><i class="fa-solid fa-key mr-2"></i>License Generator</h3>
@@ -191,7 +180,9 @@
                 </button>
 
                 <div id="gen-result-container" class="hidden mt-4 pt-4 border-t border-gray-200">
-                    <pre id="gen-lic-text" class="bg-gray-100 p-3 text-xs font-mono text-gray-800 border border-gray-200 whitespace-pre-wrap word-break-all max-h-32 overflow-y-auto custom-scrollbar"></pre>
+                    <div class="bg-gray-100 p-3 border border-gray-200 rounded-lg max-h-40 overflow-y-auto custom-scrollbar w-full flex justify-center">
+                        <pre id="gen-lic-text" class="text-[11px] sm:text-xs font-mono text-gray-800 whitespace-pre-wrap break-all text-left"></pre>
+                    </div>
                     <button onclick="copyGeneratedLicense()" id="btn-copy-gen" class="w-full mt-3 bg-white border border-gray-300 text-gray-700 hover:border-black hover:text-black py-2 text-sm font-bold font-mono transition-colors">
                         COPY TO CLIPBOARD
                     </button>
@@ -200,8 +191,9 @@
         </div>
     </div>
 
+    <!-- 页脚与统计 -->
     <footer class="bg-white border-t border-gray-200 py-8 text-center mt-auto">
-        <p class="text-xs text-gray-400 font-mono tracking-wide uppercase">© 2026 RouterOS Custom Mirror. Powered by 红尘有爱.</p>
+        <p class="text-xs text-gray-400 font-mono tracking-widest uppercase">© 2026 RouterOS Custom Mirror. Powered by 红尘有爱.</p>
         <div class="mt-3 text-xs text-gray-400 font-mono flex justify-center items-center gap-3">
             <span id="busuanzi_container_site_uv" style="display:none"><i class="fa-solid fa-user-astronaut mr-1"></i>UV: <span id="busuanzi_value_site_uv" class="text-gray-600 font-bold"></span></span>
             <span>|</span>
@@ -212,13 +204,10 @@
     <!-- 核心逻辑脚本 -->
     <script>
         const BASE_URL = window.location.pathname.includes('/routeros') ? '/routeros' : '';
-        
-        // 🌟 已删除 Testing
-        let categorizedVersions = { 'stable': [], 'long-term': [], 'development': [] };
-        let latestInfo = { 'stable': '', 'long-term': '', 'development': '' };
+        let categorizedVersions = { 'stable': [], 'long-term': [], 'testing': [], 'development': [] };
+        let latestInfo = { 'stable': '', 'long-term': '', 'testing': '', 'development': '' };
         let currentTab = 'stable';
         
-        // 🌟 新增：架构记录器
         let currentArch = 'arm64';
 
         function formatBytes(bytes) {
@@ -233,10 +222,9 @@
             } catch (e) { return false; }
         }
 
-        // 🌟 架构切换函数
         function switchArch(arch) {
             currentArch = arch;
-            ['arm64', 'arm', 'mipsbe', 'x86'].forEach(a => {
+            ['arm64', 'chr'].forEach(a => {
                 const btn = document.getElementById(`arch-${a}`);
                 if (btn) {
                     btn.className = (a === arch) 
@@ -468,7 +456,7 @@
         }
 
         // ==========================================
-        // 核心数据渲染逻辑 (包含 x86 虚拟机镜像探测)
+        // 🌟 核心数据渲染逻辑 (包含 CHR / arm64 镜像双向探测)
         // ==========================================
         async function loadVersionData(version) {
             if (!version) { showState('empty'); return; }
@@ -479,58 +467,61 @@
             const colMore = document.getElementById('col-more');
             const clog = document.getElementById('changelog-content');
 
-            // 🌟 获取当前的动态架构
-            const mainArch = currentArch; 
+            // 当选择 CHR 时，实际对应的是 x86 架构的 NPK 包
+            const mainArch = (currentArch === 'chr') ? 'x86' : currentArch; 
 
             document.getElementById('info-channel').innerText = currentTab;
             document.getElementById('info-version').innerText = "v" + version;
-            document.getElementById('info-arch').innerText = mainArch.toUpperCase();
+            document.getElementById('info-arch').innerText = currentArch.toUpperCase();
 
             try {
-                // [列1：系统主包 & X86 镜像]
+                // [列1：系统主包 & 虚拟机镜像]
+                const mainPkgName = mainArch === 'x86' ? `routeros-${version}.npk` : `routeros-${version}-${mainArch}.npk`;
+                
                 let sysHtml = `
-                    <a href="${BASE_URL}/${version}/routeros-${version}-${mainArch}.npk" class="flex items-center text-base group font-mono w-fit mb-3">
+                    <a href="${BASE_URL}/${version}/${mainPkgName}" class="flex items-center text-sm group font-mono w-fit mb-3">
                         <i class="fa-solid fa-cube mr-3 text-black group-hover:text-gray-500 transition-colors w-4 text-center"></i> 
-                        <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">RouterOS</span>
+                        <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">RouterOS (NPK)</span>
                     </a>
                 `;
 
-                if (mainArch === 'x86') {
-                    const ovaUrl = `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.ova.zip`;
-                    const vmdkUrl = `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vmdk.zip`;
-                    const qcow2Url = `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.qcow2.zip`;
+                // 🌟 CHR 标签页专属：合并探测并渲染 x86 和 arm64 所有的虚拟机镜像
+                if (currentArch === 'chr') {
+                    const imgList = [
+                        { label: 'RAW disk (arm64)', url: `${BASE_URL}/extra/${version}/chr-${version}-arm64.img.zip` },
+                        { label: 'VDI (arm64)', url: `${BASE_URL}/extra/${version}/chr-${version}-arm64.vdi.zip` },
+                        { label: 'RAW disk', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.img.zip` },
+                        { label: 'VDI', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vdi.zip` },
+                        { label: 'OVA', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.ova.zip` },
+                        { label: 'VMDK', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vmdk.zip` },
+                        { label: 'QCOW2', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.qcow2.zip` },
+                        { label: 'VirtualPC', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vhd.zip` },
+                        { label: 'VHDX', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vhdx.zip` }
+                    ];
 
-                    const [hasOva, hasVmdk, hasQcow2] = await Promise.all([
-                        checkFileExists(ovaUrl), checkFileExists(vmdkUrl), checkFileExists(qcow2Url)
-                    ]);
+                    const results = await Promise.all(imgList.map(img => checkFileExists(img.url)));
+                    
+                    let imagesHtml = '';
+                    results.forEach((exists, idx) => {
+                        if (exists) {
+                            imagesHtml += `
+                                <a href="${imgList[idx].url}" class="flex items-center text-sm group font-mono w-fit">
+                                    <i class="fa-solid fa-compact-disc mr-3 text-black group-hover:text-gray-500 transition-colors w-4 text-center"></i> 
+                                    <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">${imgList[idx].label}</span>
+                                </a>
+                            `;
+                        }
+                    });
 
-                    if (hasOva || hasVmdk || hasQcow2) {
+                    if (imagesHtml) {
                         sysHtml += `
-                            <div class="mt-6 pt-5 border-t border-gray-200">
-                                <span class="flex items-center text-sm text-gray-800 mb-4 font-mono">
-                                    <i class="fa-solid fa-server mr-3 text-black w-4 text-center"></i> Virtual Images:
-                                </span>
-                                <div class="pl-7 space-y-3">
+                            <div class="mt-8 mb-6">
+                                <h3 class="text-sm font-bold text-gray-800 font-mono tracking-normal mb-6 uppercase">Install Images</h3>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-2">
+                                    ${imagesHtml}
+                                </div>
+                            </div>
                         `;
-                        if (hasOva) {
-                            sysHtml += `
-                                <a href="${ovaUrl}" class="flex items-center text-base group font-mono w-fit">
-                                    <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">VMware OVA</span>
-                                </a>`;
-                        }
-                        if (hasVmdk) {
-                            sysHtml += `
-                                <a href="${vmdkUrl}" class="flex items-center text-base group font-mono w-fit">
-                                    <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">VMDK Disk</span>
-                                </a>`;
-                        }
-                        if (hasQcow2) {
-                            sysHtml += `
-                                <a href="${qcow2Url}" class="flex items-center text-base group font-mono w-fit">
-                                    <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">QCOW2 (PVE)</span>
-                                </a>`;
-                        }
-                        sysHtml += `</div></div>`;
                     }
                 }
                 colSys.innerHTML = sysHtml;
@@ -544,34 +535,35 @@
                 if (hasNetinstall) {
                     moreHtml += `
                         <div>
-                            <span class="flex items-center text-base text-black mb-2 font-mono">
+                            <span class="flex items-center text-sm text-black mb-2 font-mono">
                                 <i class="fa-solid fa-file-zipper mr-3 text-black w-4 text-center"></i> Netinstall:
                             </span>
                             <div class="pl-7 space-y-2">
-                                <a href="${netinstallUrl}" class="inline-block text-base text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors font-mono">Win64</a>
+                                <a href="${netinstallUrl}" class="inline-block text-sm text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors font-mono">Win64</a>
                             </div>
                         </div>`;
                 }
-                // 仅当非 x86 时才去显示 WiFi 驱动，x86 上本身没这些驱动
+                
+                // 只有 ARM64 (非 x86) 才显示 Legacy Driver
                 if (hasWifiR && mainArch !== 'x86') {
                     moreHtml += `
                         <div>
-                            <span class="flex items-center text-base text-black mb-2 mt-4 font-mono">
+                            <span class="flex items-center text-sm text-black mb-2 mt-4 font-mono">
                                 <i class="fa-solid fa-wifi mr-3 text-black w-4 text-center"></i> Ax5 & Ax6 wifi:
                             </span>
                             <div class="pl-7 space-y-2">
-                                <a href="${wifiRUrl}" class="inline-block text-base text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors font-mono">wifi-qcom-R</a>
+                                <a href="${wifiRUrl}" class="inline-block text-sm text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors font-mono">wifi-qcom-R</a>
                             </div>
                         </div>`;
                 }
                 
                 moreHtml += `
                         <div>
-                            <span class="flex items-center text-base text-black mb-2 mt-4 font-mono">
+                            <span class="flex items-center text-sm text-black mb-2 mt-4 font-mono">
                                 <i class="fa-solid fa-key mr-3 text-black w-4 text-center"></i> License:
                             </span>
                             <div class="pl-7 space-y-2">
-                                <button onclick="openGenerator()" class="inline-block text-base text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors text-left font-mono">Key Generator Online</button>
+                                <button onclick="openGenerator()" class="inline-block text-sm text-black underline decoration-black underline-offset-4 hover:text-gray-500 hover:decoration-gray-500 transition-colors text-left font-mono">Key Generator Online</button>
                             </div>
                         </div>`;
 
@@ -593,11 +585,13 @@
 
                 for (let i = 1; i < lines.length; i++) {
                     const [arch, name, size] = lines[i].trim().split(',');
-                    // 🌟 动态匹配当前架构
+                    // 只展示当前匹配架构的包 (如果是 CHR，这里就是 x86)
                     if (arch === mainArch && name && size) {
                         hasPackages = true;
+                        const fileName = arch === 'x86' ? `${name}-${version}.npk` : `${name}-${version}-${arch}.npk`;
+                        
                         extHtml += `
-                            <a href="${BASE_URL}/${version}/${name}-${version}-${arch}.npk" class="flex items-center text-base group truncate font-mono w-fit" title="${name} (${formatBytes(parseInt(size))})">
+                            <a href="${BASE_URL}/${version}/${fileName}" class="flex items-center text-sm group truncate font-mono w-fit" title="${name} (${formatBytes(parseInt(size))})">
                                 <i class="fa-solid fa-box-open mr-3 text-black group-hover:text-gray-500 transition-colors w-4 text-center"></i> 
                                 <span class="text-black underline decoration-black underline-offset-4 group-hover:text-gray-500 group-hover:decoration-gray-500 transition-colors">${name}</span>
                             </a>
