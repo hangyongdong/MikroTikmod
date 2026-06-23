@@ -170,7 +170,7 @@ jobs:
               sudo -E python3 roswifi.py -i "$NET_NPK" --src ./netinstall -o "$NET_NPK" --target nova/bin
           fi
           
-          echo "7. 打包option 与 mihomo (arm64)..."
+          echo "打包option 与 mihomo (arm64)..."
           sudo mkdir -p ./option-root/bin/
           sudo mkdir -p ./mihomo-root/bin/
           
@@ -230,7 +230,7 @@ jobs:
           
           TEMPLATE_NPK=$(find ./all_packages-${ARCH} -name "gps-*.npk" | head -n 1)
           if [ -z "$TEMPLATE_NPK" ]; then 
-              TEMPLATE_NPK="routeros-${VERSION}-${ARCH}-patch.npk"
+              TEMPLATE_NPK="routeros-${VERSION}-${ARCH}.npk"
           fi
           
           echo ">>> 生成 squashfs 镜像..."
