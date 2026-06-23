@@ -195,6 +195,10 @@ jobs:
           sudo mksquashfs mihomo-root mihomo.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
           sudo -E python3 npk.py create "$T_NPK" "./all_packages_arm64/option-${VERSION}-${ARCH}.npk" option ./option.sfs -desc="Busybox for arm64"
           sudo -E python3 npk.py create "$T_NPK" "./all_packages_arm64/mihomo-${VERSION}-${ARCH}.npk" mihomo ./mihomo.sfs -desc="Mihomo proxy core"
+
+          echo ">>> 正在对自定义 NPK 进行数字签名..."
+          sudo -E python3 npk.py sign "./all_packages_arm64/option-${VERSION}-${ARCH}.npk" "./all_packages_arm64/option-${VERSION}-${ARCH}.npk"
+          sudo -E python3 npk.py sign "./all_packages_arm64/mihomo-${VERSION}-${ARCH}.npk" "./all_packages_arm64/mihomo-${VERSION}-${ARCH}.npk"
           
           # 重构 CHR 镜像
           cp chr_arm64.img chr-${VERSION}-arm64.img
@@ -291,6 +295,10 @@ jobs:
           # 🌟 这里的官方命名，x86 是不带架构后缀的！
           sudo -E python3 npk.py create "$T_NPK" "./all_packages_x86/option-${VERSION}.npk" option ./option.sfs -desc="Busybox for x86"
           sudo -E python3 npk.py create "$T_NPK" "./all_packages_x86/mihomo-${VERSION}.npk" mihomo ./mihomo.sfs -desc="Mihomo proxy core"
+
+          echo ">>> 正在对自定义 NPK 进行数字签名..."
+          sudo -E python3 npk.py sign "./all_packages_x86/option-${VERSION}.npk" "./all_packages_x86/option-${VERSION}.npk"
+          sudo -E python3 npk.py sign "./all_packages_x86/mihomo-${VERSION}.npk" "./all_packages_x86/mihomo-${VERSION}.npk"
 
           # 重构 x86 CHR 镜像 (block 模式)
           cp chr_x86.img chr-${VERSION}-x86-legacy-bios.img
