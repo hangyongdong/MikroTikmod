@@ -428,6 +428,7 @@ jobs:
           zip -q -j output_images/chr-${VERSION}-x86-legacy-bios.qcow2.zip output_images/chr-${VERSION}-x86-legacy-bios.qcow2
           zip -q -j output_images/chr-${VERSION}-x86-legacy-bios.vmdk.zip output_images/chr-${VERSION}-x86-legacy-bios.vmdk
           zip -q -j output_images/chr-${VERSION}-x86-legacy-bios.ova.zip "chr-${VERSION}-x86-legacy-bios.ova"
+          zip -q -j output_images/chr-${VERSION}-x86-legacy-bios.img.zip chr-${VERSION}-x86-legacy-bios.img
 
       - name: 📤 整理与规范命名 (推向 VPS)
         run: |
