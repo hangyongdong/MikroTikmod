@@ -44,6 +44,7 @@ jobs:
           WEB_DIR: ${{ secrets.VPS_WEB_DIR }}
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+              echo ">>> 检测到手动触发，使用指定的版本和频道..."
               PUB_VPS="${{ inputs.publish_to_vps }}"
               if [ "$PUB_VPS" == "true" ]; then IS_PUB="true"; else IS_PUB="false"; fi
               JSON_ARRAY=$(jq -n -c \
@@ -55,13 +56,19 @@ jobs:
               exit 0
           fi
 
+          # 静默配置 SSH 密钥 (2>/dev/null 屏蔽掉乱七八糟的 SSH 版本输出)
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
+          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null
 
+          echo ">>> 开启自动巡检模式..."
           JSON_ARRAY="[]"
+          
           for channel in stable long-term development; do
+              echo "-----------------------------------------------------"
+              echo "🔍 正在检查频道: $channel"
+              
               OFFICIAL_NEWEST=$(curl -sLf "https://upgrade.mikrotik.com/routeros/NEWESTa7.$channel" || echo "")
               OFFICIAL_VER=$(echo "$OFFICIAL_NEWEST" | awk '{print $1}')
               
@@ -71,20 +78,38 @@ jobs:
               if [[ ! "$OFFICIAL_VER" =~ ^[0-9] ]]; then OFFICIAL_VER=""; fi
               if [[ ! "$CUSTOM_VER" =~ ^[0-9] ]]; then CUSTOM_VER=""; fi
               
+              # 🌟 打印出双方的版本对比
+              echo "   > 官方最新版 : ${OFFICIAL_VER:-'未获取到'}"
+              echo "   > VPS 当前版 : ${CUSTOM_VER:-'无记录'}"
+              
               if [ -n "$OFFICIAL_VER" ]; then
                   UPDATE=false
                   if [ -z "$CUSTOM_VER" ]; then
+                      echo "   ✅ 准备首次发布该频道..."
                       UPDATE=true
                   elif [ "$OFFICIAL_VER" != "$CUSTOM_VER" ]; then
                       NORM_OFFICIAL=$(echo "$OFFICIAL_VER" | sed -E 's/(beta|rc|alpha)/~\1/g')
                       NORM_CUSTOM=$(echo "$CUSTOM_VER" | sed -E 's/(beta|rc|alpha)/~\1/g')
-                      if dpkg --compare-versions "$NORM_OFFICIAL" gt "$NORM_CUSTOM"; then UPDATE=true; fi
+                      if dpkg --compare-versions "$NORM_OFFICIAL" gt "$NORM_CUSTOM"; then 
+                          echo "   🚀 发现新版本！准备拉起更新流水线..."
+                          UPDATE=true
+                      else
+                          echo "   ⛔ 官方版本低于或等于当前版本，忽略。"
+                      fi
+                  else
+                      echo "   💤 版本一致，无需更新。"
                   fi
+                  
                   if [ "$UPDATE" = true ]; then
                       JSON_ARRAY=$(echo "$JSON_ARRAY" | jq -c --arg v "$OFFICIAL_VER" --arg c "$channel" '. += [{"version": $v, "channel": $c, "publish_to_vps": true}]')
                   fi
+              else
+                  echo "   ❌ 抓取官方版本失败，跳过。"
               fi
           done
+          
+          echo "-----------------------------------------------------"
+          echo ">>> 最终构建矩阵: $JSON_ARRAY"
           echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
 
   patch-and-pack:
