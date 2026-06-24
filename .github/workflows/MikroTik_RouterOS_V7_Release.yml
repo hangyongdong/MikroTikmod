@@ -164,10 +164,18 @@ jobs:
               sudo rm -f "$WIFI_FILE" "./all_packages_arm64/wireless-${VERSION}-${ARCH}.npk" "./all_packages_arm64/wifi-qcom-be-${VERSION}-${ARCH}.npk"
           fi
           
-          # 替换 Netinstall 内核
+          # 替换 Netinstall 内核 (ARM64)
           NET_NPK="./all_packages_arm64/netinstall-${VERSION}-${ARCH}.npk"
-          if [ -f "$NET_NPK" ] && [ -f "./netinstall/netinstall" ]; then
-              sudo -E python3 roswifi.py -i "$NET_NPK" --src ./netinstall -o "$NET_NPK" --target nova/bin
+          if [ -f "$NET_NPK" ] && [ -f "./netinstall/netinstall_arm64" ]; then
+              # 创建临时注入目录，并重命名为标准名称
+              mkdir -p ./tmp_net_arm64
+              cp ./netinstall/netinstall_arm64 ./tmp_net_arm64/netinstall
+              sudo chmod +x ./tmp_net_arm64/netinstall
+              
+              sudo -E python3 roswifi.py -i "$NET_NPK" --src ./tmp_net_arm64 -o "$NET_NPK" --target nova/bin
+              
+              # 清理临时目录
+              rm -rf ./tmp_net_arm64
           fi
           
           echo "打包option 与 mihomo (arm64)..."
@@ -307,9 +315,18 @@ jobs:
           sudo -E python3 patch.py npk ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk
           for f in ./all_packages_x86/*.npk; do sudo -E python3 npk.py sign "$f" "$f"; done
           
+          # 替换 Netinstall 内核 (x86)
           NET_NPK=$(find ./all_packages_x86 -name "netinstall-*.npk" | head -n 1)
-          if [ -n "$NET_NPK" ] && [ -f "./netinstall/netinstall" ]; then
-              sudo -E python3 roswifi.py -i "$NET_NPK" --src ./netinstall -o "$NET_NPK" --target nova/bin
+          if [ -n "$NET_NPK" ] && [ -f "./netinstall/netinstall_x86" ]; then
+              # 创建临时注入目录，并重命名为标准名称
+              mkdir -p ./tmp_net_x86
+              cp ./netinstall/netinstall_x86 ./tmp_net_x86/netinstall
+              sudo chmod +x ./tmp_net_x86/netinstall
+              
+              sudo -E python3 roswifi.py -i "$NET_NPK" --src ./tmp_net_x86 -o "$NET_NPK" --target nova/bin
+              
+              # 清理临时目录
+              rm -rf ./tmp_net_x86
           fi
           
           echo ">>> 打包option 与 mihomo (x86)..."
