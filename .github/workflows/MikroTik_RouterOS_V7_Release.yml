@@ -255,7 +255,21 @@ jobs:
           cp chr_arm64.img chr-${VERSION}-arm64.img
           sudo qemu-nbd -c /dev/nbd1 -f raw chr-${VERSION}-arm64.img
           sleep 2
+          
+          # 🌟 步骤 1：先临时挂载官方原版的 ext2 引导分区，并将其内部文件全部备份到宿主机内存中
           sudo mkdir -p ./chr/boot && sudo mount /dev/nbd1p1 ./chr/boot/
+          sudo mkdir -p /tmp/boot_backup
+          sudo cp -a ./chr/boot/* /tmp/boot_backup/
+          
+          # 🌟 步骤 2：安全卸载该分区，并强行将其格式化为标准的 FAT32 格式 (彻底解决 UEFI 不识别引导的问题)
+          sudo umount /dev/nbd1p1
+          sudo mkfs.vfat -F 32 -n "EFI" /dev/nbd1p1
+          
+          # 🌟 步骤 3：重新挂载新格式化好的 FAT32 分区，并将刚才备份的引导文件全部还原回去
+          sudo mount /dev/nbd1p1 ./chr/boot/
+          sudo cp -a /tmp/boot_backup/* ./chr/boot/
+          
+          # 4. 生成底层的二进制 Patch 脚本 (原样保留您的精妙代码)
           cat << 'EOF' > patch_efi.py
           import os, sys, binascii
           file_path = sys.argv[1]
@@ -274,8 +288,12 @@ jobs:
                   if len(new_b) <= len(old_b): data = data.replace(old_b, new_b.ljust(len(old_b), b'\x00'))
           with open(file_path, "wb") as f: f.write(data)
           EOF
+          
+          # 5. 自动寻找引导文件 (由于还原了文件，我们依然可以通过 find 精准定位)
           EFI_FILE=$(cd ./chr/boot && find . -iname "bootaa64.efi" | head -n 1 | sed 's|^\./||')
           if [ -n "$EFI_FILE" ]; then sudo -E python3 patch_efi.py "./chr/boot/$EFI_FILE"; fi
+          
+          # 6. 安全卸载引导分区
           sudo umount /dev/nbd1p1
           
           sudo mkfs.ext4 -F -L "RouterOS" -m 0 /dev/nbd1p2
