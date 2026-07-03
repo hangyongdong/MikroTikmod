@@ -185,7 +185,7 @@ jobs:
           # WiFi 驱动分离
           WIFI_FILE="./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}.npk"
           if [ -f "$WIFI_FILE" ]; then
-              sudo -E python3 roswifi.py -i "$WIFI_FILE" -b ./bdwlanX ./bdwlanR -o "./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}-X.npk" "./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}-R.npk"
+              sudo -E python3 qcomp.py -i "$WIFI_FILE" -b ./bdwlanX ./bdwlanR -o "./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}-X.npk" "./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}-R.npk" --max-vaps 32
               sudo rm -f "$WIFI_FILE" "./all_packages_arm64/wireless-${VERSION}-${ARCH}.npk" "./all_packages_arm64/wifi-qcom-be-${VERSION}-${ARCH}.npk"
           fi
           
