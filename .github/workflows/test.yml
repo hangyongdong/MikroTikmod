@@ -69,7 +69,7 @@ jobs:
               -b ./bdwlanX ./bdwlanR \
               -o "./output/wifi-qcom-${VERSION}-${ARCH}-X.npk" \
                  "./output/wifi-qcom-${VERSION}-${ARCH}-R.npk" \
-              --max-vaps 32
+              --max-vaps 64
           
           echo ">>> 生成的文件列表："
           ls -lh ./output/
