@@ -1,0 +1,661 @@
+name: MikroTik RouterOS V7
+
+on:
+  schedule:
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'RouterOS 版本 (例如: 7.23)'
+        required: true
+        type: string
+      publish_to_vps:
+        description: '是否同步发布到升级服务器'
+        required: true
+        type: boolean
+        default: false
+      channel:
+        description: '更新频道'
+        required: true
+        type: choice
+        options:
+          - stable
+          - long-term
+          - testing
+          - development
+        default: 'stable'
+
+permissions:
+  contents: write
+
+jobs:
+  check-updates:
+    name: 🔍 检查版本更新
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: 对比版本并生成构建矩阵
+        id: set-matrix
+        env:
+          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          SSH_PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
+          SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          WEB_DIR: ${{ secrets.VPS_WEB_DIR }}
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+              echo ">>> 检测到手动触发，使用指定的版本和频道..."
+              PUB_VPS="${{ inputs.publish_to_vps }}"
+              if [ "$PUB_VPS" == "true" ]; then IS_PUB="true"; else IS_PUB="false"; fi
+              JSON_ARRAY=$(jq -n -c \
+                --arg v "${{ inputs.version }}" \
+                --arg c "${{ inputs.channel }}" \
+                --argjson p "$IS_PUB" \
+                '[{version: $v, channel: $c, publish_to_vps: $p}]')
+              echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
+              exit 0
+          fi
+
+          # 静默配置 SSH 密钥 (2>/dev/null 屏蔽掉乱七八糟的 SSH 版本输出)
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts 2>/dev/null
+
+          echo ">>> 开启自动巡检模式..."
+          JSON_ARRAY="[]"
+          
+          # 🌟 已加回 testing
+          for channel in stable long-term testing development; do
+              echo "-----------------------------------------------------"
+              echo "🔍 正在检查频道: $channel"
+              
+              OFFICIAL_NEWEST=$(curl -sLf "https://upgrade.mikrotik.com/routeros/NEWESTa7.$channel" || echo "")
+              OFFICIAL_VER=$(echo "$OFFICIAL_NEWEST" | awk '{print $1}')
+              
+              CUSTOM_NEWEST=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cat $WEB_DIR/NEWESTa7.$channel 2>/dev/null" || echo "")
+              CUSTOM_VER=$(echo "$CUSTOM_NEWEST" | awk '{print $1}')
+              
+              if [[ ! "$OFFICIAL_VER" =~ ^[0-9] ]]; then OFFICIAL_VER=""; fi
+              if [[ ! "$CUSTOM_VER" =~ ^[0-9] ]]; then CUSTOM_VER=""; fi
+              
+              # 🌟 打印出双方的版本对比
+              echo "   > 官方最新版 : ${OFFICIAL_VER:-'未获取到'}"
+              echo "   > VPS 当前版 : ${CUSTOM_VER:-'无记录'}"
+              
+              if [ -n "$OFFICIAL_VER" ]; then
+                  UPDATE=false
+                  if [ -z "$CUSTOM_VER" ]; then
+                      echo "   ✅ 准备首次发布该频道..."
+                      UPDATE=true
+                  elif [ "$OFFICIAL_VER" != "$CUSTOM_VER" ]; then
+                      NORM_OFFICIAL=$(echo "$OFFICIAL_VER" | sed -E 's/(beta|rc|alpha)/~\1/g')
+                      NORM_CUSTOM=$(echo "$CUSTOM_VER" | sed -E 's/(beta|rc|alpha)/~\1/g')
+                      if dpkg --compare-versions "$NORM_OFFICIAL" gt "$NORM_CUSTOM"; then 
+                          echo "   🚀 发现新版本！准备拉起更新流水线..."
+                          UPDATE=true
+                      else
+                          echo "   ⛔ 官方版本低于或等于当前版本，忽略。"
+                      fi
+                  else
+                      echo "   💤 版本一致，无需更新。"
+                  fi
+                  
+                  if [ "$UPDATE" = true ]; then
+                      JSON_ARRAY=$(echo "$JSON_ARRAY" | jq -c --arg v "$OFFICIAL_VER" --arg c "$channel" '. += [{"version": $v, "channel": $c, "publish_to_vps": true}]')
+                  fi
+              else
+                  echo "   ❌ 抓取官方版本失败，跳过。"
+              fi
+          done
+          
+          echo "-----------------------------------------------------"
+          echo ">>> 最终构建矩阵: $JSON_ARRAY"
+          echo "matrix=$JSON_ARRAY" >> $GITHUB_OUTPUT
+
+  patch-and-pack:
+    name: 📦 编译发布 (${{ matrix.build.channel }} - ${{ matrix.build.version }})
+    needs: check-updates
+    if: ${{ needs.check-updates.outputs.matrix != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        build: ${{ fromJson(needs.check-updates.outputs.matrix) }}
+    
+    env:
+      VERSION: ${{ matrix.build.version }}
+      CHANNEL: ${{ matrix.build.channel }}
+      MIKRO_NPK_SIGN_PUBLIC_KEY: ${{ secrets.MIKRO_NPK_SIGN_PUBLIC_KEY }}
+      MIKRO_LICENSE_PUBLIC_KEY: ${{ secrets.MIKRO_LICENSE_PUBLIC_KEY }}
+      CUSTOM_LICENSE_PRIVATE_KEY: ${{ secrets.CUSTOM_LICENSE_PRIVATE_KEY }}
+      CUSTOM_LICENSE_PUBLIC_KEY: ${{ secrets.CUSTOM_LICENSE_PUBLIC_KEY }}
+      CUSTOM_NPK_SIGN_PRIVATE_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PRIVATE_KEY }}
+      CUSTOM_NPK_SIGN_PUBLIC_KEY: ${{ secrets.CUSTOM_NPK_SIGN_PUBLIC_KEY }}
+      MIKRO_UPGRADE_URL: ${{ secrets.MIKRO_UPGRADE_URL }}
+      CUSTOM_UPGRADE_URL: ${{ secrets.CUSTOM_UPGRADE_URL }}
+      MIKRO_CLOUD_URL: ${{ secrets.MIKRO_CLOUD_URL }}
+      CUSTOM_CLOUD_URL: ${{ secrets.CUSTOM_CLOUD_URL }}
+      MIKRO_CLOUD_PUBLIC_KEY: ${{ secrets.MIKRO_CLOUD_PUBLIC_KEY }}
+      CUSTOM_CLOUD_PUBLIC_KEY: ${{ secrets.CUSTOM_CLOUD_PUBLIC_KEY }}          
+      MIKRO_LICENCE_URL: ${{ secrets.MIKRO_LICENCE_URL }}
+      CUSTOM_LICENCE_URL: ${{ secrets.CUSTOM_LICENCE_URL }}
+
+    steps:
+      - name: 检出代码仓库
+        uses: actions/checkout@v4
+
+      - name: 配置环境与工具
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y zip unzip wget curl squashfs-tools python3-pip qemu-utils gdisk rsync jq
+          sudo pip3 install pefile pyelftools
+          sudo modprobe nbd
+
+      - name: 下载并处理 Netinstall 工具
+        run: |
+          curl -sL "https://download.mikrotik.com/routeros/${VERSION}/CHANGELOG" > changelog.txt
+          sudo wget -nv -O netinstall.zip "https://download.mikrotik.com/routeros/${VERSION}/netinstall-${VERSION}.zip"
+          sudo unzip -q netinstall.zip
+          if [ -f "./netinstall/netinstall" ]; then sudo chmod +x ./netinstall/netinstall; fi
+          sudo -E python3 patch.py netinstall netinstall.exe
+          sudo zip -q netinstall-${VERSION}.zip ./netinstall.exe
+
+      # ==========================================
+      # ⚙️ 处理 ARM64 架构
+      # ==========================================
+      - name: ⚙️ 编译与打包 (ARM64)
+        run: |
+          export ARCH="arm64"
+          mkdir -p ./all_packages_arm64
+          curl -L -f -# -o ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"
+          curl -L -# -O "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
+          sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_arm64/
+          
+          curl -L -# -o chr_arm64.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}-${ARCH}.img.zip"
+          sudo unzip -q chr_arm64.img.zip && mv chr-${VERSION}-${ARCH}.img chr_arm64.img
+          rm -f chr_arm64.img.zip
+          
+          # 核心系统包 Patch 与签名
+          sudo -E python3 patch.py npk ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk
+          for f in ./all_packages_arm64/*.npk; do sudo -E python3 npk.py sign "$f" "$f"; done
+          
+          # WiFi 驱动分离
+          WIFI_FILE="./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}.npk"
+          if [ -f "$WIFI_FILE" ]; then
+              sudo -E python3 roswifi.py -i "$WIFI_FILE" -b ./bdwlanX ./bdwlanR -o "./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}-X.npk" "./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}-R.npk"
+              sudo rm -f "$WIFI_FILE" "./all_packages_arm64/wireless-${VERSION}-${ARCH}.npk" "./all_packages_arm64/wifi-qcom-be-${VERSION}-${ARCH}.npk"
+          fi
+          
+          # 替换 Netinstall 内核 (ARM64)
+          NET_NPK="./all_packages_arm64/netinstall-${VERSION}-${ARCH}.npk"
+          if [ -f "$NET_NPK" ] && [ -f "./netinstall/netinstall_arm64" ]; then
+              # 创建临时注入目录，并重命名为标准名称
+              mkdir -p ./tmp_net_arm64
+              cp ./netinstall/netinstall_arm64 ./tmp_net_arm64/netinstall
+              sudo chmod +x ./tmp_net_arm64/netinstall
+              
+              sudo -E python3 roswifi.py -i "$NET_NPK" --src ./tmp_net_arm64 -o "$NET_NPK" --target nova/bin
+              
+              # 清理临时目录
+              rm -rf ./tmp_net_arm64
+          fi
+          
+          echo "打包option 与 mihomo (arm64)..."
+          sudo mkdir -p ./option-root/bin/
+          sudo mkdir -p ./mihomo-root/bin/
+          
+          echo ">>> 正在克隆官方 mihomo 源码仓库.."
+          git clone --depth 1 -b Meta https://github.com/MetaCubeX/mihomo.git mihomo_src
+          
+          if [ ! -d "mihomo_src" ]; then
+              echo "!!! 克隆仓库失败，请检查网络连接或仓库地址"
+              exit 1
+          fi
+
+          echo ">>> 正在调用独立脚本 Patch 修改 constant/path.go ..."
+          sudo python3 patch_mihomo_path.py ./mihomo_src/constant/path.go
+          cd mihomo_src
+
+
+          echo ">>> 正在注入 RouterOS NPK 专属 SSL 证书路径..."
+          cat << 'EOF' > init_env.go
+          package main
+
+          import "os"
+
+          func init() {
+              // NPK 安装后会被挂载在 /pckg/mihomo/ 目录下
+              os.Setenv("SSL_CERT_FILE", "/pckg/mihomo/certs/cacert.pem")
+          }
+          EOF
+
+          # 带着 init_env.go 一起编译
+          GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o ../mihomo_temp main.go init_env.go
+          cd ..
+          rm -rf mihomo_src          
+          if [ ! -f "mihomo_temp" ]; then
+              echo "!!! Go 编译失败，请检查上方编译日志"
+              exit 1
+          fi          
+          sudo mv mihomo_temp ./mihomo-root/bin/mihomo
+          sudo chmod +x ./mihomo-root/bin/mihomo          
+          
+
+          echo ">>> 正在打包系统根证书 (cacert.pem)..."
+          sudo mkdir -p ./mihomo-root/certs
+          sudo curl -sL "https://curl.se/ca/cacert.pem" -o ./mihomo-root/certs/cacert.pem
+          
+          echo ">>> Mihomo 编译与证书融合成功！"
+          
+          echo ">>> 正在制作option NPK..."
+          if [ -f "./busybox/busybox_aarch64" ]; then
+              sudo cp ./busybox/busybox_aarch64 ./option-root/bin/busybox
+              sudo chmod +x ./option-root/bin/busybox
+              sudo chmod +x ./busybox/busybox_x86
+              for cmd in $(./busybox/busybox_x86 --list); do sudo ln -sf /pckg/option/bin/busybox ./option-root/bin/$cmd; done             
+          fi
+          
+          T_NPK=$(find ./all_packages_arm64 -name "gps-*.npk" | head -n 1)
+          if [ -z "$T_NPK" ]; then 
+              T_NPK="./all_packages_arm64/routeros-${VERSION}-${ARCH}-patch.npk"
+          fi
+          
+          # 🌟 修复：生成 squashfs 镜像前，先强行清理可能残留的同名旧文件
+          sudo rm -f option.sfs  mihomo.sfs
+          
+          # 🌟 修复：在 mksquashfs 命令末尾加入 -noappend 参数，强制覆盖不追加
+          echo ">>> 生成 squashfs 镜像..."
+          sudo mksquashfs option-root option.sfs -quiet -comp xz -no-xattrs -b 256k -all-root -noappend
+          sudo mksquashfs mihomo-root mihomo.sfs -quiet -comp xz -no-xattrs -b 256k -all-root -noappend
+
+          echo ">>> 打包 option NPK..."
+          sudo -E python3 npk.py create "$T_NPK" "./all_packages_arm64/option-${VERSION}-${ARCH}.npk" option ./option.sfs -desc="Busybox for arm64"
+
+          echo ">>> 打包 [mihomo NPK] ..."
+          sudo -E python3 npk.py create "$T_NPK" "./all_packages_arm64/mihomo-${VERSION}-${ARCH}.npk" mihomo ./mihomo.sfs -desc="Mihomo proxy core"
+          
+          # 🌟 修复：对新创建的包进行数字签名
+          echo ">>> 正在对新创建的包进行数字签名..."
+          sudo -E python3 npk.py sign "./all_packages_arm64/option-${VERSION}-${ARCH}.npk" "./all_packages_arm64/option-${VERSION}-${ARCH}.npk"
+          sudo -E python3 npk.py sign "./all_packages_arm64/mihomo-${VERSION}-${ARCH}.npk" "./all_packages_arm64/mihomo-${VERSION}-${ARCH}.npk"
+
+          # 重构 CHR 镜像
+          cp chr_arm64.img chr-${VERSION}-arm64.img
+          sudo qemu-nbd -c /dev/nbd1 -f raw chr-${VERSION}-arm64.img
+          sleep 2
+          
+          # 🌟 步骤 1：先临时挂载官方原版的 ext2 引导分区，并将其内部文件全部备份到宿主机内存中
+          sudo mkdir -p ./chr/boot && sudo mount /dev/nbd1p1 ./chr/boot/
+          sudo mkdir -p /tmp/boot_backup
+          sudo cp -a ./chr/boot/* /tmp/boot_backup/
+          
+          # 🌟 步骤 2：安全卸载该分区，并强行将其格式化为标准的 FAT32 格式 (彻底解决 UEFI 不识别引导的问题)
+          sudo umount /dev/nbd1p1
+          sudo mkfs.vfat -F 32 -n "EFI" /dev/nbd1p1
+          
+          # 🌟 步骤 3：重新挂载新格式化好的 FAT32 分区，并将刚才备份的引导文件全部还原回去
+          sudo mount /dev/nbd1p1 ./chr/boot/
+          sudo cp -a /tmp/boot_backup/* ./chr/boot/
+          
+          # 4. 生成底层的二进制 Patch 脚本 (原样保留您的精妙代码)
+          cat << 'EOF' > patch_efi.py
+          import os, sys, binascii
+          file_path = sys.argv[1]
+          with open(file_path, "rb") as f: data = f.read()
+          keys = [('MIKRO_NPK_SIGN_PUBLIC_KEY', 'CUSTOM_NPK_SIGN_PUBLIC_KEY'), ('MIKRO_LICENSE_PUBLIC_KEY', 'CUSTOM_LICENSE_PUBLIC_KEY'), ('MIKRO_CLOUD_PUBLIC_KEY', 'CUSTOM_CLOUD_PUBLIC_KEY')]
+          for old_env, new_env in keys:
+              old_val, new_val = os.environ.get(old_env), os.environ.get(new_env)
+              if old_val and new_val:
+                  old_b, new_b = binascii.unhexlify(old_val), binascii.unhexlify(new_val)
+                  if old_b in data: data = data.replace(old_b, new_b)
+          urls = [('MIKRO_UPGRADE_URL', 'CUSTOM_UPGRADE_URL'), ('MIKRO_CLOUD_URL', 'CUSTOM_CLOUD_URL'), ('MIKRO_LICENCE_URL', 'CUSTOM_LICENCE_URL')]
+          for old_env, new_env in urls:
+              old_val, new_val = os.environ.get(old_env), os.environ.get(new_env)
+              if old_val and new_val:
+                  old_b, new_b = old_val.encode(), new_val.encode()
+                  if len(new_b) <= len(old_b): data = data.replace(old_b, new_b.ljust(len(old_b), b'\x00'))
+          with open(file_path, "wb") as f: f.write(data)
+          EOF
+          
+          # 5. 自动寻找引导文件 (由于还原了文件，我们依然可以通过 find 精准定位)
+          EFI_FILE=$(cd ./chr/boot && find . -iname "bootaa64.efi" | head -n 1 | sed 's|^\./||')
+          if [ -n "$EFI_FILE" ]; then sudo -E python3 patch_efi.py "./chr/boot/$EFI_FILE"; fi
+          
+          # 6. 安全卸载引导分区
+          sudo umount /dev/nbd1p1
+          
+          sudo mkfs.ext4 -F -L "RouterOS" -m 0 /dev/nbd1p2
+          sudo mkdir -p ./chr/routeros && sudo mount /dev/nbd1p2 ./chr/routeros/
+          sudo mkdir -p ./chr/routeros/{var/pdb/system,var/pdb/option,var/pdb/mihomo,boot,rw/disk}
+          sudo cp ./all_packages_arm64/routeros-${VERSION}-${ARCH}-patch.npk ./chr/routeros/var/pdb/system/image
+          sudo cp ./all_packages_arm64/option-${VERSION}-${ARCH}.npk ./chr/routeros/var/pdb/option/image
+          sudo cp ./all_packages_arm64/mihomo-${VERSION}-${ARCH}.npk ./chr/routeros/var/pdb/mihomo/image
+          echo -e '#!/bin/sh\n' | sudo tee ./chr/routeros/rw/disk/rc.local
+          sudo umount /dev/nbd1p2
+          sudo qemu-nbd -d /dev/nbd1
+
+          mkdir -p output_images
+          sudo qemu-img convert -f raw -O vdi chr-${VERSION}-arm64.img output_images/chr-${VERSION}-arm64.vdi
+          zip -q -j output_images/chr-${VERSION}-arm64.img.zip chr-${VERSION}-arm64.img
+          zip -q -j output_images/chr-${VERSION}-arm64.vdi.zip output_images/chr-${VERSION}-arm64.vdi
+          
+          # 清理临时目录
+          sudo rm -rf ./mihomo-root ./option-root ./mihomo_src
+          sudo rm -f option.sfs  mihomo.sfs
+
+      # ==========================================
+      # ⚙️ 处理 x86 架构 (规范命名)
+      # ==========================================
+      - name: ⚙️ 编译与打包 (x86)
+        run: |
+          ARCH="x86"
+          mkdir -p ./all_packages_x86
+          if ! curl -L -f -# -o ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"; then
+              curl -L -f -# -o ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}.npk"
+          fi
+          curl -L -# -O "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
+          sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_x86/
+          
+          curl -L -# -o chr_x86.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img.zip"
+          sudo unzip -q chr_x86.img.zip && mv chr-${VERSION}.img chr_x86.img
+          rm -f chr_x86.img.zip
+          
+          sudo -E python3 patch.py npk ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk
+          for f in ./all_packages_x86/*.npk; do sudo -E python3 npk.py sign "$f" "$f"; done
+          
+          # 替换 Netinstall 内核 (x86)
+          NET_NPK=$(find ./all_packages_x86 -name "netinstall-*.npk" | head -n 1)
+          if [ -n "$NET_NPK" ] && [ -f "./netinstall/netinstall_x86" ]; then
+              # 创建临时注入目录，并重命名为标准名称
+              mkdir -p ./tmp_net_x86
+              cp ./netinstall/netinstall_x86 ./tmp_net_x86/netinstall
+              sudo chmod +x ./tmp_net_x86/netinstall
+              
+              sudo -E python3 roswifi.py -i "$NET_NPK" --src ./tmp_net_x86 -o "$NET_NPK" --target nova/bin
+              
+              # 清理临时目录
+              rm -rf ./tmp_net_x86
+          fi
+          
+          echo ">>> 打包option 与 mihomo (x86)..."
+          sudo mkdir -p ./option-root/bin/
+          sudo mkdir -p ./mihomo-root/bin/
+          
+          echo ">>> 正在克隆官方 mihomo 源码仓库.."
+          git clone --depth 1 -b Meta https://github.com/MetaCubeX/mihomo.git mihomo_src
+          
+          if [ ! -d "mihomo_src" ]; then
+              echo "!!! 克隆仓库失败，请检查网络连接或仓库地址"
+              exit 1
+          fi
+
+          echo ">>> 正在调用独立脚本 Patch 修改 constant/path.go ..."
+          sudo python3 patch_mihomo_path.py ./mihomo_src/constant/path.go
+          cd mihomo_src
+
+          echo ">>> 正在注入 RouterOS NPK 专属 SSL 证书路径..."
+          cat << 'EOF' > init_env.go
+          package main
+
+          import "os"
+
+          func init() {
+              // NPK 安装后会被挂载在 /pckg/mihomo/ 目录下
+              os.Setenv("SSL_CERT_FILE", "/pckg/mihomo/certs/cacert.pem")
+          }
+          EOF
+
+          # =========================================================
+          # 🌟 核心修改 1：改变 Go 的目标架构为 386 (标准 x86 兼容模式)
+          # 注: 若您确定只用于 64 位 CHR，此处 GOARCH 也可以写为 amd64
+          # =========================================================
+          GOOS=linux GOARCH=386 go build -ldflags "-s -w" -o ../mihomo_temp main.go init_env.go
+          cd ..
+          rm -rf mihomo_src          
+          if [ ! -f "mihomo_temp" ]; then
+              echo "!!! Go 编译失败，请检查上方编译日志"
+              exit 1
+          fi          
+          sudo mv mihomo_temp ./mihomo-root/bin/mihomo && sudo chmod +x ./mihomo-root/bin/mihomo          
+          
+          echo ">>> 正在打包系统根证书 (cacert.pem)..."
+          sudo mkdir -p ./mihomo-root/certs
+          sudo curl -sL "https://curl.se/ca/cacert.pem" -o ./mihomo-root/certs/cacert.pem
+          
+          echo ">>> Mihomo 编译与证书融合成功！"
+          
+          echo ">>> 正在制作option NPK..."
+          # =========================================================
+          # 🌟 核心修改 2：调用和复制 x86 版本的 busybox
+          # =========================================================
+          if [ -f "./busybox/busybox_x86" ]; then
+              sudo chmod +x ./busybox/busybox_x86 
+              sudo cp ./busybox/busybox_x86 ./option-root/bin/busybox
+              sudo chmod +x ./option-root/bin/busybox
+              
+              # 直接用刚拷进去 of x86 版本生成命令列表
+              COMMANDS=$(./busybox/busybox_x86 --list)
+              for cmd in $COMMANDS; do
+                  sudo ln -sf /pckg/option/bin/busybox ./option-root/bin/$cmd                  
+              done             
+          fi
+          
+          TEMPLATE_NPK=$(find ./all_packages_x86 -name "gps-*.npk" | head -n 1)
+          if [ -z "$TEMPLATE_NPK" ]; then 
+              TEMPLATE_NPK="routeros-${VERSION}-${ARCH}-patch.npk"
+          fi
+          
+          # 🌟 修复：生成 squashfs 镜像前，先强行清理可能残留的同名旧文件
+          sudo rm -f option.sfs  mihomo.sfs
+          
+          # 🌟 修复：在 mksquashfs 命令末尾加入 -noappend 参数，强制覆盖不追加
+          echo ">>> 生成 squashfs 镜像..."
+          sudo mksquashfs option-root option.sfs -quiet -comp xz -no-xattrs -b 256k -all-root -noappend
+          sudo mksquashfs mihomo-root mihomo.sfs -quiet -comp xz -no-xattrs -b 256k -all-root -noappend
+
+          # =========================================================
+          # 🌟 核心修改 3：修改 NPK 打包描述文本
+          # =========================================================
+          echo ">>> 打包 option NPK..."
+          sudo -E python3 npk.py create "$TEMPLATE_NPK" "./all_packages_x86/option-${VERSION}.npk" option ./option.sfs -desc="Busybox for x86"
+
+          echo ">>> 打包 [mihomo NPK] ..."
+          sudo -E python3 npk.py create "$TEMPLATE_NPK" "./all_packages_x86/mihomo-${VERSION}.npk" mihomo ./mihomo.sfs -desc="Mihomo proxy core"
+
+          # 🌟 修复：对 x86 的新包进行强制数字签名
+          echo ">>> 正在对 custom 包进行数字签名..."
+          sudo -E python3 npk.py sign "./all_packages_x86/option-${VERSION}.npk" "./all_packages_x86/option-${VERSION}.npk"
+          sudo -E python3 npk.py sign "./all_packages_x86/mihomo-${VERSION}.npk" "./all_packages_x86/mihomo-${VERSION}.npk"
+
+          # 重构 x86 CHR 镜像 (block 模式)
+          cp chr_x86.img chr-${VERSION}-x86-legacy-bios.img
+          sudo qemu-nbd -c /dev/nbd1 -f raw chr-${VERSION}-x86-legacy-bios.img
+          sleep 2
+          sudo mkdir -p ./chr/boot && sudo mount /dev/nbd1p1 ./chr/boot/
+          EFI_FILE=$(cd ./chr/boot && find . -iname "bootx64.efi" | head -n 1 | sed 's|^\./||')
+          sudo umount /dev/nbd1p1
+          if [ -n "$EFI_FILE" ]; then sudo -E python3 patch.py block /dev/nbd1p1 "$EFI_FILE"; fi
+          
+          sudo mkfs.ext4 -F -L "RouterOS" -m 0 /dev/nbd1p2
+          sudo mkdir -p ./chr/routeros && sudo mount /dev/nbd1p2 ./chr/routeros/
+          sudo mkdir -p ./chr/routeros/{var/pdb/system,var/pdb/option,var/pdb/mihomo,boot,rw/disk}
+          sudo cp ./all_packages_x86/routeros-${VERSION}-${ARCH}-patch.npk ./chr/routeros/var/pdb/system/image
+          sudo cp ./all_packages_x86/option-${VERSION}.npk ./chr/routeros/var/pdb/option/image
+          sudo cp ./all_packages_x86/mihomo-${VERSION}.npk ./chr/routeros/var/pdb/mihomo/image
+          echo -e '#!/bin/sh\n' | sudo tee ./chr/routeros/rw/disk/rc.local
+          sudo umount /dev/nbd1p2
+          sudo qemu-nbd -d /dev/nbd1
+
+          sudo qemu-img convert -f raw -O qcow2 chr-${VERSION}-x86-legacy-bios.img output_images/chr-${VERSION}-x86-legacy-bios.qcow2
+          sudo qemu-img convert -f raw -O vmdk chr-${VERSION}-x86-legacy-bios.img output_images/chr-${VERSION}-x86-legacy-bios.vmdk
+          sudo qemu-img convert -f raw -O vmdk -o subformat=streamOptimized chr-${VERSION}-x86-legacy-bios.img disk1.vmdk
+          
+          FILE_SIZE=$(stat -c %s "disk1.vmdk")
+          VIRTUAL_SIZE=$(qemu-img info --output=json "disk1.vmdk" | jq '.["virtual-size"]')
+          CAPACITY_MB=$((VIRTUAL_SIZE / 1024 / 1024))
+          python3 build_ovf.py "disk1.vmdk" "$FILE_SIZE" "$CAPACITY_MB" "chr-${VERSION}-x86-legacy-bios.ovf"
+          sudo tar -cvf "chr-${VERSION}-x86-legacy-bios.ova" "chr-${VERSION}-x86-legacy-bios.ovf" "disk1.vmdk"
+          
+          zip -q "$OVA_NAME.zip" "$OVA_NAME"
+          sudo mv "$OVA_NAME.zip" output_images/
+          zip -q -j output_images/chr-${VERSION}-x86-legacy-bios.qcow2.zip output_images/chr-${VERSION}-x86-legacy-bios.qcow2
+          zip -q -j output_images/chr-${VERSION}-x86-legacy-bios.vmdk.zip output_images/chr-${VERSION}-x86-legacy-bios.vmdk
+          zip -q -j output_images/chr-${VERSION}-x86-legacy-bios.img.zip chr-${VERSION}-x86-legacy-bios.img
+
+      - name: 📤 整理与规范命名 (推向 VPS)
+        run: |
+          mkdir -p ./vps_upload/${VERSION}
+          mkdir -p ./vps_upload/extra/${VERSION}
+          
+          # [处理 ARM64]
+          cp ./all_packages_arm64/*.npk ./vps_upload/${VERSION}/
+          mv ./vps_upload/${VERSION}/routeros-${VERSION}-arm64-patch.npk ./vps_upload/${VERSION}/routeros-${VERSION}-arm64.npk
+          if [ -f "./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64-R.npk" ]; then
+              mv ./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64-R.npk ./vps_upload/extra/${VERSION}/
+          fi
+          if [ -f "./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64-X.npk" ]; then
+              mv ./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64-X.npk ./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64.npk
+          fi
+          
+          # [处理 X86，统一去除 -x86 后缀，完全匹配官方命名]
+          cp ./all_packages_x86/*.npk ./vps_upload/${VERSION}/
+          cp ./all_packages_x86/routeros-${VERSION}-x86-patch.npk ./vps_upload/${VERSION}/routeros-${VERSION}.npk
+          # x86 的主包已经更名，删除原本带架构的中间产物
+          rm -f ./vps_upload/${VERSION}/routeros-${VERSION}-x86*.npk
+          
+          # 循环去掉其他 x86 包名字里的 -x86 尾巴
+          cd ./vps_upload/${VERSION}/
+          for f in *-x86.npk; do
+              if [ -f "$f" ]; then mv "$f" "${f%-x86.npk}.npk"; fi
+          done
+          
+          # [生成 100% 准确的 packages.csv]
+          echo "arch,name,size" > packages.csv
+          for file in *.npk; do
+              base=$(basename "$file" .npk)
+              [[ "$base" == routeros-* ]] && continue
+              if [[ "$base" == *-${VERSION}-* ]]; then
+                  name="${base%%-${VERSION}-*}"
+                  arch="${base##*-${VERSION}-}"
+              elif [[ "$base" == *-${VERSION} ]]; then
+                  name="${base%%-${VERSION}}"
+                  arch="x86"
+              else continue; fi
+              size=$(stat -c%s "$file")
+              echo "$arch,$name,$size" >> packages.csv
+          done
+          cd ../../
+          
+          # [打包所有工具]
+          cp output_images/* ./vps_upload/extra/${VERSION}/
+          cp netinstall-${VERSION}.zip ./vps_upload/extra/${VERSION}/
+          cp changelog.txt ./vps_upload/${VERSION}/CHANGELOG
+          
+          # [生成全量 ZIP，供网页直下]
+          cd ./vps_upload/${VERSION}/
+          zip -q ../../all_packages_arm64_${VERSION}_patched.zip *arm64*.npk
+          zip -q ../../all_packages_x86_${VERSION}_patched.zip *.npk -x "*arm64*"
+          cd ../../
+
+      - name: 🚀 生成配置并发布到 VPS
+        if: ${{ matrix.build.publish_to_vps == true }}
+        env:
+          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          SSH_PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
+          SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          WEB_DIR: ${{ secrets.VPS_WEB_DIR }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p $SSH_PORT $SSH_HOST >> ~/.ssh/known_hosts
+
+          REMOTE_NEWEST=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cat $WEB_DIR/NEWESTa7.${CHANNEL} 2>/dev/null" || echo "")
+          REMOTE_VERSION=$(echo "$REMOTE_NEWEST" | awk '{print $1}')
+          
+          UPDATE_NEWEST=false
+          if [ -z "$REMOTE_VERSION" ]; then UPDATE_NEWEST=true
+          elif [ "$VERSION" != "$REMOTE_VERSION" ]; then
+              NORM_REMOTE=$(echo "$REMOTE_VERSION" | sed -E 's/(beta|rc|alpha)/~\1/g')
+              NORM_LOCAL=$(echo "$VERSION" | sed -E 's/(beta|rc|alpha)/~\1/g')
+              if dpkg --compare-versions "$NORM_LOCAL" gt "$NORM_REMOTE"; then UPDATE_NEWEST=true; fi
+          fi
+
+          if [ "$UPDATE_NEWEST" == "true" ]; then
+              echo "${VERSION} $(date +%s)" > ./vps_upload/NEWESTa7.${CHANNEL}
+          fi
+          
+          scp -P $SSH_PORT $SSH_USER@$SSH_HOST:$WEB_DIR/versions.json ./old_versions.json 2>/dev/null || echo "{}" > ./old_versions.json
+          export REMOTE_DIRS=$(ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd $WEB_DIR && find . -maxdepth 1 -type d -name '7.*' | sed 's|./||'" || echo "")
+          
+          cat << 'EOF' > update_json.py
+          import json, subprocess, re, sys, os
+          version_to_add = sys.argv[1]
+          channel_to_add = sys.argv[2]
+          db = {"stable": [], "long-term": [], "development": []}
+          try:
+              with open('./old_versions.json', 'r') as f: data = json.load(f)
+              if isinstance(data, dict):
+                  for k in db.keys(): db[k] = data.get(k, [])
+                  if "testing" in data and isinstance(data["testing"], list): db["development"].extend(data["testing"])
+          except Exception: pass
+          remote_dirs = os.environ.get("REMOTE_DIRS", "").split()
+          for v in remote_dirs:
+              v = v.strip()
+              if not v: continue
+              if not any(v in db[c] for c in db.keys()):
+                  if "rc" in v or "beta" in v or "alpha" in v: db["development"].append(v)
+                  elif v in ["7.20.8", "7.21.4"]: db["long-term"].append(v)
+                  else: db["stable"].append(v)
+          for k in db.keys():
+              if version_to_add in db[k]: db[k].remove(version_to_add)
+          db[channel_to_add].append(version_to_add)
+          def sort_versions(v_list):
+              if not v_list: return []
+              v_list = list(set(v_list))
+              norm_map = {re.sub(r'(beta|rc|alpha)', r'~\1', v): v for v in v_list}
+              p = subprocess.run(['sort', '-V', '-r'], input='\n'.join(norm_map.keys()), text=True, capture_output=True)
+              return [norm_map[n] for n in p.stdout.strip().split('\n') if n in norm_map]
+          for k in db.keys(): db[k] = sort_versions(db[k])
+          db["development"] = db["development"][:1]
+          if db["stable"]:
+              majors = set()
+              for v in db["stable"]:
+                  m = re.match(r'^(\d+\.\d+)', v)
+                  if m: majors.add(m.group(1))
+              sorted_majors = sort_versions(list(majors))
+              allowed_majors = sorted_majors[:2]
+              db["stable"] = [v for v in db["stable"] if re.match(r'^(\d+\.\d+)', v) and re.match(r'^(\d+\.\d+)', v).group(1) in allowed_majors]
+          with open('./versions.json', 'w') as f: json.dump(db, f, indent=2)
+          keep_set = set(db["stable"] + db["long-term"] + db["development"])
+          keep_set.add(version_to_add)
+          to_delete = [v for v in remote_dirs if v.strip() and v.strip() not in keep_set]
+          with open('./delete_list.txt', 'w') as f: f.write('\n'.join(to_delete))
+          EOF
+          python3 update_json.py "${VERSION}" "${CHANNEL}"
+          
+          rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
+          rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/extra $SSH_USER@$SSH_HOST:$WEB_DIR/
+          if [ -f "./vps_upload/NEWESTa7.${CHANNEL}" ]; then
+              rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/NEWESTa7.${CHANNEL} $SSH_USER@$SSH_HOST:$WEB_DIR/
+          fi
+          rsync -avz --progress -e "ssh -p $SSH_PORT" ./versions.json ./index.html $SSH_USER@$SSH_HOST:$WEB_DIR/
+
+      - name: 📦 发布到 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}-${{ env.CHANNEL }}
+          name: RouterOS v${{ env.VERSION }} Patched (${{ env.CHANNEL }})
+          body_path: changelog.txt 
+          files: |
+            all_packages_arm64_${{ env.VERSION }}_patched.zip
+            all_packages_x86_${{ env.VERSION }}_patched.zip
+            vps_upload/extra/${{ env.VERSION }}/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
