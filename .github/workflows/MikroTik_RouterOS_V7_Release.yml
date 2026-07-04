@@ -208,7 +208,7 @@ jobs:
           sudo mkdir -p ./mihomo-root/bin/
           
           echo ">>> 正在克隆官方 mihomo 源码仓库.."
-          git clone --depth 1 -b Alpha https://github.com/MetaCubeX/mihomo.git mihomo_src
+          git clone --depth 1 -b Meta https://github.com/MetaCubeX/mihomo.git mihomo_src
           
           if [ ! -d "mihomo_src" ]; then
               echo "!!! 克隆仓库失败，请检查网络连接或仓库地址"
@@ -377,7 +377,7 @@ jobs:
           sudo mkdir -p ./mihomo-root/bin/
           
           echo ">>> 正在克隆官方 mihomo 源码仓库.."
-          git clone --depth 1 -b Alpha https://github.com/MetaCubeX/mihomo.git mihomo_src
+          git clone --depth 1 -b Meta https://github.com/MetaCubeX/mihomo.git mihomo_src
           
           if [ ! -d "mihomo_src" ]; then
               echo "!!! 克隆仓库失败，请检查网络连接或仓库地址"
