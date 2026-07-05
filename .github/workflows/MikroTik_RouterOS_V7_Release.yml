@@ -2,7 +2,7 @@ name: MikroTik RouterOS V7 Release
 
 on:
   schedule:
-    #- cron: '0 10 * * *'
+    - cron: '0 12 * * *'
   workflow_dispatch:
     inputs:
       version:
@@ -21,6 +21,7 @@ on:
         options:
           - stable
           - long-term
+          - testing
           - development
         default: 'stable'
 
@@ -65,7 +66,7 @@ jobs:
           echo ">>> 开启自动巡检模式..."
           JSON_ARRAY="[]"
           
-          for channel in stable long-term development; do
+          for channel in stable long-term testing development; do
               echo "-----------------------------------------------------"
               echo "🔍 正在检查频道: $channel"
               
