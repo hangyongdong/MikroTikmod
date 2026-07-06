@@ -594,7 +594,7 @@ jobs:
               if not any(v in db[c] for c in db.keys()):
                   if "rc" in v: db["testing"].append(v)
                   elif "beta" in v: db["development"].append(v)
-                  elif: db["long-term"].append(v)
+                  elif v in ["7.20.8", "7.21.4"]: db["long-term"].append(v)
                   else: db["stable"].append(v)
           for k in db.keys():
               if version_to_add in db[k]: db[k].remove(version_to_add)
@@ -622,6 +622,9 @@ jobs:
           to_delete = [v for v in remote_dirs if v.strip() and v.strip() not in keep_set]
           with open('./delete_list.txt', 'w') as f: f.write('\n'.join(to_delete))
           EOF
+          if [ "${CHANNEL}" == "long-term" ]; then
+              sed -i "s/\"7.20.8\", \"7.21.4\"/\"7.20.8\", \"7.21.4\", \"${VERSION}\"/" update_json.py
+          fi
           python3 update_json.py "${VERSION}" "${CHANNEL}"
           
           rsync -avz --progress -e "ssh -p $SSH_PORT" ./vps_upload/${VERSION} $SSH_USER@$SSH_HOST:$WEB_DIR/
