@@ -581,20 +581,20 @@ jobs:
           import json, subprocess, re, sys, os
           version_to_add = sys.argv[1]
           channel_to_add = sys.argv[2]
-          db = {"stable": [], "long-term": [], "development": []}
+          db = {"stable": [], "long-term": [], "testing": [], "development": []}
           try:
               with open('./old_versions.json', 'r') as f: data = json.load(f)
               if isinstance(data, dict):
                   for k in db.keys(): db[k] = data.get(k, [])
-                  if "testing" in data and isinstance(data["testing"], list): db["development"].extend(data["testing"])
           except Exception: pass
           remote_dirs = os.environ.get("REMOTE_DIRS", "").split()
           for v in remote_dirs:
               v = v.strip()
               if not v: continue
               if not any(v in db[c] for c in db.keys()):
-                  if "rc" in v or "beta" in v or "alpha" in v: db["development"].append(v)
-                  elif v in ["7.20.8", "7.21.4"]: db["long-term"].append(v)
+                  if "rc" in v: db["testing"].append(v)
+                  elif "beta" in v: db["development"].append(v)
+                  elif: db["long-term"].append(v)
                   else: db["stable"].append(v)
           for k in db.keys():
               if version_to_add in db[k]: db[k].remove(version_to_add)
@@ -607,6 +607,7 @@ jobs:
               return [norm_map[n] for n in p.stdout.strip().split('\n') if n in norm_map]
           for k in db.keys(): db[k] = sort_versions(db[k])
           db["development"] = db["development"][:1]
+          db["testing"] = db["testing"][:1]
           if db["stable"]:
               majors = set()
               for v in db["stable"]:
@@ -616,7 +617,7 @@ jobs:
               allowed_majors = sorted_majors[:2]
               db["stable"] = [v for v in db["stable"] if re.match(r'^(\d+\.\d+)', v) and re.match(r'^(\d+\.\d+)', v).group(1) in allowed_majors]
           with open('./versions.json', 'w') as f: json.dump(db, f, indent=2)
-          keep_set = set(db["stable"] + db["long-term"] + db["development"])
+          keep_set = set(db["stable"] + db["long-term"]+ db["testing"] + db["development"])
           keep_set.add(version_to_add)
           to_delete = [v for v in remote_dirs if v.strip() and v.strip() not in keep_set]
           with open('./delete_list.txt', 'w') as f: f.write('\n'.join(to_delete))
