@@ -171,8 +171,8 @@ jobs:
         run: |
           export ARCH="arm64"
           mkdir -p ./all_packages_arm64
-          curl -L -f -# -o ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"
-          curl -L -# -O "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
+          curl -L -f -C - --retry 5 --retry-delay 3 -# -o ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"
+          curl -L -f -C - --retry 5 --retry-delay 3 -# -O "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
           sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_arm64/
           
           curl -L -# -o chr_arm64.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}-${ARCH}.img.zip"
@@ -346,13 +346,13 @@ jobs:
         run: |
           ARCH="x86"
           mkdir -p ./all_packages_x86
-          if ! curl -L -f -# -o ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"; then
-              curl -L -f -# -o ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}.npk"
+          if ! curl -L -f -C - --retry 5 --retry-delay 3 -# -o ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"; then
+              curl -L --f -C - --retry 5 --retry-delay 3 -# -o ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}.npk"
           fi
-          curl -L -# -O "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
+          curl -L -f -C - --retry 5 --retry-delay 3 -# -O "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
           sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_x86/
           
-          curl -L -# -o chr_x86.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img.zip"
+          curl -L -f -C - --retry 5 --retry-delay 3 -# -o chr_x86.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img.zip"
           sudo unzip -q chr_x86.img.zip && mv chr-${VERSION}.img chr_x86.img
           rm -f chr_x86.img.zip
           
