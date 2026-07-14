@@ -175,7 +175,7 @@ jobs:
           curl -L -f -C - --retry 5 --retry-delay 3 -# -O "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
           sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_arm64/
           
-          curl -L -# -o chr_arm64.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}-${ARCH}.img.zip"
+          curl -L -f -C - --retry 5 --retry-delay 3 -# -o chr_arm64.img.zip "https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}-${ARCH}.img.zip"
           sudo unzip -q chr_arm64.img.zip && mv chr-${VERSION}-${ARCH}.img chr_arm64.img
           rm -f chr_arm64.img.zip
           
