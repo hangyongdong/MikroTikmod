@@ -347,7 +347,7 @@ jobs:
           ARCH="x86"
           mkdir -p ./all_packages_x86
           if ! curl -L -f -C - --retry 5 --retry-delay 3 -# -o ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"; then
-              curl -L --f -C - --retry 5 --retry-delay 3 -# -o ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}.npk"
+              curl -L -f -C - --retry 5 --retry-delay 3 -# -o ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}.npk"
           fi
           curl -L -f -C - --retry 5 --retry-delay 3 -# -O "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
           sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_x86/
