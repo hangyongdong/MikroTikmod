@@ -170,6 +170,7 @@ jobs:
       - name: ⚙️ 编译与打包 (ARM64)
         run: |
           export ARCH="arm64"
+          mkdir -p ./all_packages_arm64
           wget -c --tries=5 --waitretry=3 --show-progress \
             -O "./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk" \
             "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk"
