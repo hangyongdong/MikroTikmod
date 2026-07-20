@@ -226,8 +226,8 @@ jobs:
           sudo python3 patch_mihomo_path.py ./mihomo_src/constant/path.go
           cd mihomo_src
           
-          VERSION=$(git describe --tags --always 2>/dev/null || echo "Meta-Custom")
-          BUILDTIME=$(date -u "+%Y-%m-%dT%H:%M:%SZ")
+          MIHOVER=$(git describe --tags --always 2>/dev/null || echo "Meta-Custom")
+          MIHOBDTIME=$(date -u "+%Y-%m-%dT%H:%M:%SZ")
 
           echo ">>> 正在注入 RouterOS NPK 专属 SSL 证书路径..."
           cat << 'EOF' > init_env.go
@@ -242,10 +242,10 @@ jobs:
           EOF
 
           # 2. 带着 init_env.go 一起编译，并通过 -X 强行注入版本与时间变量
-          echo ">>> 正在编译 mihomo (版本: $VERSION)..."
+          echo ">>> 正在编译 mihomo (版本: $MIHOVER)..."
           GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w \
-            -X 'github.com/metacubex/mihomo/constant.Version=${VERSION}' \
-            -X 'github.com/metacubex/mihomo/constant.BuildTime=${BUILDTIME}'" \
+            -X 'github.com/metacubex/mihomo/constant.Version=${MIHOVER}' \
+            -X 'github.com/metacubex/mihomo/constant.BuildTime=${MIHOBDTIME}'" \
             -o ../mihomo_temp main.go init_env.go
           cd ..
           rm -rf mihomo_src          
@@ -412,10 +412,6 @@ jobs:
           sudo python3 patch_mihomo_path.py ./mihomo_src/constant/path.go
           cd mihomo_src
 
-          # 1. 动态获取 Git 版本号与当前构建UTC时间
-          VERSION=$(git describe --tags --always 2>/dev/null || echo "Meta-Custom")
-          BUILDTIME=$(date -u "+%Y-%m-%dT%H:%M:%SZ")
-
           echo ">>> 正在注入 RouterOS NPK 专属 SSL 证书路径..."
           cat << 'EOF' > init_env.go
           package main
@@ -432,10 +428,10 @@ jobs:
           # 🌟 核心修改 1：改变 Go 的目标架构为 386 (标准 x86 兼容模式)
           # 注: 若您确定只用于 64 位 CHR，此处 GOARCH 也可以写为 amd64
           # =========================================================
-          echo ">>> 正在编译 mihomo (版本: $VERSION)..."
+          echo ">>> 正在编译 mihomo (版本: $MIHOVER)..."
           GOOS=linux GOARCH=386 go build -trimpath -ldflags "-s -w \
-            -X 'github.com/metacubex/mihomo/constant.Version=${VERSION}' \
-            -X 'github.com/metacubex/mihomo/constant.BuildTime=${BUILDTIME}'" \
+            -X 'github.com/metacubex/mihomo/constant.Version=${MIHOVER}' \
+            -X 'github.com/metacubex/mihomo/constant.BuildTime=${MIHOBDTIME}'" \
             -o ../mihomo_temp main.go init_env.go
           cd ..
           rm -rf mihomo_src          
