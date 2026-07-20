@@ -411,7 +411,10 @@ jobs:
           echo ">>> 正在调用独立脚本 Patch 修改 constant/path.go ..."
           sudo python3 patch_mihomo_path.py ./mihomo_src/constant/path.go
           cd mihomo_src
-
+          
+          MIHOVER=$(git describe --tags --always 2>/dev/null || echo "Meta-Custom")
+          MIHOBDTIME=$(date -u "+%Y-%m-%dT%H:%M:%SZ")
+          
           echo ">>> 正在注入 RouterOS NPK 专属 SSL 证书路径..."
           cat << 'EOF' > init_env.go
           package main
