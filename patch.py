@@ -449,12 +449,10 @@ def patch_squashfs(path, key_dict):
                         data = data.replace(old_url, new_url)
 
                 # 4. 针对 licupgr 文件的特殊替换                        
-                if filename == 'licupgr':
-                    for old_url,new_url in renew_replacements.items():
-                        if old_url in data:
-                            print(f'{file_path} url patched {old_url.decode()[:7]}...')
-                            data = data.replace(old_url,new_url)
-                            modified = True
+                for old_url, new_url in renew_replacements.items():
+                    if old_url in data:
+                        print(f'{file_path} renew url patched')
+                        data = data.replace(old_url, new_url)
                             
                 # 5. 如果内容有变动，写回文件
                 if data != original_data:
