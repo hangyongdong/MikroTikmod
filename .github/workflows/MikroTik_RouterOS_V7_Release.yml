@@ -498,7 +498,7 @@ jobs:
           sudo mkdir -p ./chr/boot && sudo mount /dev/nbd1p1 ./chr/boot/
           EFI_FILE=$(cd ./chr/boot && find . -iname "bootx64.efi" | head -n 1 | sed 's|^\./||')
           sudo umount /dev/nbd1p1
-          if [ -n "$EFI_FILE" ]; then sudo -E python3 patch.py block /dev/nbd1p1 "$EFI_FILE"; fi
+          if [ -n "$EFI_FILE" ]; then sudo -E python3 patch.py buildefi /dev/nbd1p1 "$EFI_FILE"; fi
           
           sudo mkfs.ext4 -F -L "RouterOS" -m 0 /dev/nbd1p2
           sudo mkdir -p ./chr/routeros && sudo mount /dev/nbd1p2 ./chr/routeros/
