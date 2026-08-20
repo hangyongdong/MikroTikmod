@@ -1,5 +1,6 @@
 import subprocess,lzma
 import struct,os,re,tempfile
+import shutil
 try:
     import pefile
 except ImportError:
