@@ -407,7 +407,8 @@ def patch_loader(loader_file):
         print(f"[!] 警告：未在仓库目录下找到预制的引导文件 {custom_loader_source} ，跳过覆盖！")
 
 
-def patch_squashfs(path,key_dict):
+def patch_squashfs(path, key_dict):
+    # 1. 整理所有的 URL 和 公钥替换对
     url_replacements = {
         os.environ.get('MIKRO_LICENCE_URL', '').encode(): os.environ.get('CUSTOM_LICENCE_URL', '').encode(),
         os.environ.get('MIKRO_UPGRADE_URL', '').encode(): os.environ.get('CUSTOM_UPGRADE_URL', '').encode(),
@@ -415,76 +416,49 @@ def patch_squashfs(path,key_dict):
         os.environ.get('MIKRO_CLOUD2_URL', '').encode(): os.environ.get('CUSTOM_CLOUD2_URL', '').encode(),
         os.environ.get('MIKRO_CLOUD_PUBLIC_KEY', '').encode(): os.environ.get('CUSTOM_CLOUD_PUBLIC_KEY', '').encode(),
     }
+    # 过滤掉空的替换对
     url_replacements = {k: v for k, v in url_replacements.items() if k and v}
+
+    # 专门针对续期文件的替换
     renew_replacements = {
         os.environ.get('MIKRO_RENEW_URL', '').encode(): os.environ.get('CUSTOM_RENEW_URL', '').encode(),
     }
     renew_replacements = {k: v for k, v in renew_replacements.items() if k and v}
 
     for root, dirs, files in os.walk(path):
-        if 'mode' in files and 'keyman' in files:
-            for file_path in [os.path.join(root, 'mode'),os.path.join(root, 'keyman')]:
-                with open(file_path, 'rb') as f:
-                    data = f.read()
-                for old_url,new_url in url_replacements.items():
+        for _file in files:
+            file_path = os.path.join(root, _file)
+            if os.path.isfile(file_path):
+                # === [新增判断] 如果是 loader 文件，先执行路径替换 ===
+                if _file == 'loader':
+                    patch_loader(file_path)
+                    continue
+                # ===============================================
+                # 1. 读取文件
+                data = open(file_path, 'rb').read()
+                original_data = data
+
+                # 2. 替换公钥 (License Public Key)
+                for old_public_key, new_public_key in key_dict.items():
+                    data = replace_key(old_public_key, new_public_key, data, file_path)
+
+                # 3. 替换常规的 4 个 URL 和云端公钥
+                for old_url, new_url in url_replacements.items():
                     if old_url in data:
-                        print(f'{file_path} url patched {old_url.decode()[:7]}...')
-                        data = data.replace(old_url,new_url)
-                modified = False
-                for old_public_key,new_public_key in key_dict.items():
-                    new_data  = replace_key(old_public_key,new_public_key,data,file_path)
-                    if new_data != data:
-                        data = new_data
-                        modified = True
-                with open(f'{file_path}_', 'wb') as f:
-                    f.write(data)
-        if 'loader' in files and os.path.isfile(os.path.join(root, 'loader')):
-            loader_file = os.path.join(root, 'loader')
-            patch_loader(loader_file)
+                        print(f'{file_path} url/cloud-key patched')
+                        data = data.replace(old_url, new_url)
 
-        if 'BOOTX64.EFI' in files and os.path.isfile(os.path.join(root, 'BOOTX64.EFI')):
-            efi_file = os.path.join(root, 'BOOTX64.EFI')
-            with open(efi_file, 'rb') as f:
-                data = f.read()
-            new_data = patch_kernel(data,key_dict)
-            assert new_data != data, f'{file_path} key not patched'
-            with open(efi_file, 'wb') as f:
-                f.write(new_data)
-
-
-        for filename in files:
-            if filename in ['mode','keyman','loader','BOOTX64.EFI']:
-                continue
-            file_path  = os.path.join(root,filename)
-            if not os.path.isfile(file_path):
-                continue
-  
-            modified = False
-            with open(file_path, 'rb') as f:
-                data = f.read()
-
-            for old_public_key,new_public_key in key_dict.items():
-                new_data  = replace_key(old_public_key,new_public_key,data,file_path)
-                if new_data != data:
-                    data = new_data
-                    modified = True
-
-            for old_url,new_url in url_replacements.items():
-                if old_url in data:
-                    print(f'{file_path} url patched {old_url.decode()[:7]}...')
-                    data = data.replace(old_url,new_url)
-                    modified = True
-                    
-            if filename == 'licupgr':
-                for old_url,new_url in renew_replacements.items():
-                    if old_url in data:
-                        print(f'{file_path} url patched {old_url.decode()[:7]}...')
-                        data = data.replace(old_url,new_url)
-                        modified = True
-
-            if modified:
-                with open(file_path, 'wb') as f:
-                    f.write(data)
+                # 4. 针对 licupgr 文件的特殊替换                        
+                if filename == 'licupgr':
+                    for old_url,new_url in renew_replacements.items():
+                        if old_url in data:
+                            print(f'{file_path} url patched {old_url.decode()[:7]}...')
+                            data = data.replace(old_url,new_url)
+                            modified = True
+                            
+                # 5. 如果内容有变动，写回文件
+                if data != original_data:
+                    open(file_path, 'wb').write(data)
                     
 def run_shell_command(command):
     process = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
