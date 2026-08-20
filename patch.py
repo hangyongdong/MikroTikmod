@@ -83,7 +83,8 @@ def patch_bzimage(data:bytes,key_dict:dict):
     payload_length_actual = payload_length_orig - 4 #last 4 bytes is uncompressed size(z_output_len)
     z_output_len = struct.unpack_from('<I',data,payload_offset+payload_length_actual)[0]
     vmlinux_xz = data[payload_offset:payload_offset+payload_length_actual]
-    assert z_output_len == len(vmlinux_xz), 'vmlinux size is not equal to expected'
+    vmlinux = lzma.decompress(vmlinux_xz)
+    assert z_output_len == len(vmlinux), 'vmlinux size is not equal to expected'
     CPIO_HEADER_MAGIC = b'07070100'
     CPIO_FOOTER_MAGIC = b'TRAILER!!!\x00\x00\x00\x00' #545241494C455221212100000000
     cpio_offset1 = vmlinux.index(CPIO_HEADER_MAGIC)
