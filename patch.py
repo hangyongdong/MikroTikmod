@@ -557,7 +557,7 @@ if __name__ == '__main__':
     netinstall_parser.add_argument('-O','--output',type=str,help='Output file')
     block_parser = subparsers.add_parser('block', help='patch file on block device (in-place)')
     block_parser.add_argument('dev', type=str, help='block device, e.g. /dev/nbd1p1')
-    block_parser.add_argument('file', type=str, help='file path inside fs, e.g. EFI/BOOT/BOOTX64.E
+    block_parser.add_argument('file', type=str, help='file path inside fs, e.g. EFI/BOOT/BOOTX64.EFI')
     args = parser.parse_args()
     key_dict = {
         bytes.fromhex(os.environ['MIKRO_LICENSE_PUBLIC_KEY']):bytes.fromhex(os.environ['CUSTOM_LICENSE_PUBLIC_KEY']),
