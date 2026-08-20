@@ -1,5 +1,5 @@
 import subprocess,lzma
-import struct,os,re,tempfile
+import struct,os,re,sys,tempfile
 import shutil
 try:
     import pefile
