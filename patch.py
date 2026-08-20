@@ -555,6 +555,9 @@ if __name__ == '__main__':
     netinstall_parser = subparsers.add_parser('netinstall',help='patch netinstall file')
     netinstall_parser.add_argument('input',type=str, help='Input file')
     netinstall_parser.add_argument('-O','--output',type=str,help='Output file')
+    block_parser = subparsers.add_parser('block', help='patch file on block device (in-place)')
+    block_parser.add_argument('dev', type=str, help='block device, e.g. /dev/nbd1p1')
+    block_parser.add_argument('file', type=str, help='file path inside fs, e.g. EFI/BOOT/BOOTX64.E
     args = parser.parse_args()
     key_dict = {
         bytes.fromhex(os.environ['MIKRO_LICENSE_PUBLIC_KEY']):bytes.fromhex(os.environ['CUSTOM_LICENSE_PUBLIC_KEY']),
@@ -575,6 +578,9 @@ if __name__ == '__main__':
     elif args.command == 'netinstall':
         print(f'patching {args.input} ...')
         patch_netinstall(key_dict,args.input,args.output)
+    elif args.command == 'block':
+        print(f'patching {args.file} on {args.dev} ...')
+        patch_block(args.dev, args.file, key_dict)
     else:
         parser.print_help()
 
