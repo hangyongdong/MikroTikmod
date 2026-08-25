@@ -448,7 +448,7 @@ def patch_squashfs(path, key_dict):
         os.environ.get('MIKRO_UPGRADE_URL', '').encode(): os.environ.get('CUSTOM_UPGRADE_URL', '').encode(),
         os.environ.get('MIKRO_CLOUD_URL', '').encode(): os.environ.get('CUSTOM_CLOUD_URL', '').encode(),
         os.environ.get('MIKRO_CLOUD2_URL', '').encode(): os.environ.get('CUSTOM_CLOUD2_URL', '').encode(),  # 新增
-        os.environ.get('MIKRO_CLOUD_PUBLIC_KEY', '').encode(): os.environ.get('CUSTOM_CLOUD_PUBLIC_KEY', '').encode(),
+   #     os.environ.get('MIKRO_CLOUD_PUBLIC_KEY', '').encode(): os.environ.get('CUSTOM_CLOUD_PUBLIC_KEY', '').encode(),
     }
     # 过滤掉空的替换对
     url_replacements = {k: v for k, v in url_replacements.items() if k and v}
