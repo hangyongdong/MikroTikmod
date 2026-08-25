@@ -25,6 +25,30 @@ def replace_chunks(old_chunks,new_chunks,data,name):
     return re.sub(pattern, replace_match, data)
 
 def replace_key(old,new,data,name=''):
+    def generate_arm32_load_r3(chunk_bytes):
+        """动态生成装载 32 位常数到 R3 寄存器的 ARM 指令"""
+        val = struct.unpack('<I', chunk_bytes)[0]
+        lower_16 = val & 0xFFFF
+        upper_16 = (val >> 16) & 0xFFFF
+        
+        # MOVW r3, #lower_16 (Opcode: E3003000)
+        imm4_l = (lower_16 >> 12) & 0xF
+        imm12_l = lower_16 & 0xFFF
+        instr1 = 0xE3003000 | (imm4_l << 16) | imm12_l
+        
+        # MOVT r3, #upper_16 (Opcode: E3403000)
+        imm4_u = (upper_16 >> 12) & 0xF
+        imm12_u = upper_16 & 0xFFF
+        instr2 = 0xE3403000 | (imm4_u << 16) | imm12_u
+        
+        # NOP (MOV r0, r0) 补齐第三条指令位置
+        instr3 = 0xE1A00000
+        
+        return [
+            struct.pack('<I', instr1),
+            struct.pack('<I', instr2),
+            struct.pack('<I', instr3)
+        ]
     old_chunks = [old[i:i+4] for i in range(0, len(old), 4)]
     new_chunks = [new[i:i+4] for i in range(0, len(new), 4)]
     data =  replace_chunks(old_chunks, new_chunks, data,name)
@@ -43,8 +67,8 @@ def replace_key(old,new,data,name=''):
             print(f'{name} public key patched {old[:16].hex().upper()}...')
             data = data.replace(old_bytes,new_bytes)
             old_codes = [bytes.fromhex('793583E2'),bytes.fromhex('FD3A83E2'),bytes.fromhex('193D83E2')]  #0x1e400000+0xfd000+0x640
-            new_codes = generate_arm32_load_r3(new_chunks[8])
-            # new_codes = [bytes.fromhex('FF34A0E3'),bytes.fromhex('753C83E2'),bytes.fromhex('FC3083E2')]  #0xff0075fc= 0xff000000+0x7500+0xfc
+            new_codes = generate_arm32_load_r3(new_chunks[3])
+            #new_codes = [bytes.fromhex('FF34A0E3'),bytes.fromhex('753C83E2'),bytes.fromhex('FC3083E2')]
             data =  replace_chunks(old_codes, new_codes, data,name)
         else:
             def conver_chunks(data:bytes):
@@ -70,7 +94,7 @@ def replace_key(old,new,data,name=''):
                 data = data.replace(old_bytes,new_bytes)
                 old_codes = [bytes.fromhex('713783E2'),bytes.fromhex('223A83E2'),bytes.fromhex('8D3F83E2')]  #0x1C40000+0x22000+0x234
                 new_codes = generate_arm32_load_r3(new_chunks[8])
-                # new_codes = [bytes.fromhex('973303E3'),bytes.fromhex('DD3883E3'),bytes.fromhex('033483E3')]  #0x03DD3397 = 0x3397|0x00DD0000|0x03000000
+                #new_codes = [bytes.fromhex('973303E3'),bytes.fromhex('DD3883E3'),bytes.fromhex('033483E3')]  0x03DD3397 = 0x3397|0x00DD0000|0x03000000
                 data =  replace_chunks(old_codes, new_codes, data,name)
 
     return data
