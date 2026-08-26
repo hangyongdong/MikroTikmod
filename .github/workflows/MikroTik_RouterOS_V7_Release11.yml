@@ -1,4 +1,4 @@
-name: MikroTik RouterOS V7 Release
+name: MikroTik RouterOS V7 Release New
 
 on:
   schedule:
