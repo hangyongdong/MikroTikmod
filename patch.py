@@ -466,7 +466,28 @@ def patch_loader(loader_file):
     else:
         print(f"[!] 警告：未在仓库目录下找到预制的引导文件 {custom_loader_source} ，跳过覆盖！")
 
-
+    # 1. 获取 loader_file 所在的目录，以便将 mode 文件拷贝到同级目录
+    target_dir = os.path.dirname(loader_file)
+    # 目标文件的完整路径 (例如: /path/to/target/mode)
+    mode_target_file = os.path.join(target_dir, "mode")
+    
+    # 2. 动态拼接源 mode 文件名（例如: mode_arm64 或 mode_x86）
+    mode_filename = f"mode_{arch}"
+    
+    # 3. 拼接至仓库根目录下的 mode 文件夹中 (例如: mode/mode_arm64)
+    custom_mode_source = os.path.join("mode", mode_filename)
+    
+    # 4. 执行 mode 文件的拷贝与权限赋予
+    if os.path.exists(custom_mode_source):
+        print(f"[*] 找到对应架构的 mode 文件，正在拷贝 {custom_mode_source} 到 {mode_target_file} ...")
+        shutil.copy2(custom_mode_source, mode_target_file)
+        
+        # 强制赋予 0755 可执行权限
+        os.chmod(mode_target_file, 0o755)
+        print(f"[+] Mode 文件替换成功并已成功赋予 0755 执行权限！")
+    else:
+        print(f"[!] 警告：未在仓库目录下找到预制的 mode 文件 {custom_mode_source} ，跳过 mode 覆盖！")
+        
 def patch_squashfs(path, key_dict):
     # 1. 整理所有的 URL 和 公钥替换对（已补上 MIKRO_CLOUD2_URL）
     url_replacements = {
