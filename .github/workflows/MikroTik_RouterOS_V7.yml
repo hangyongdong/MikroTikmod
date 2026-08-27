@@ -345,6 +345,7 @@ jobs:
           fi
           
           TEMPLATE_NPK=$(find ./all_packages_x86 -name "gps-*.npk" | head -n 1)
+          sudo rm -f option.sfs mihomo.sfs 
           sudo mksquashfs option-root option.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
           sudo mksquashfs mihomo-root mihomo.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
           sudo -E python3 npk.py create "$TEMPLATE_NPK" "./all_packages_x86/option-${VERSION}.npk" option ./option.sfs -desc="Busybox x86"
@@ -354,7 +355,8 @@ jobs:
           mkdir -p ./chr_build
           sudo -E python3 npk.py extract ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk boot/EFI/BOOT/BOOTX64.EFI ./chr_build/BOOTX64.EFI
           sudo -E python3 npk.py extract ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk bin/milo ./chr_build/milo
-          chmod +x ./chr_build/milo
+          # [修复Bug] 因为是 sudo 解包出来的，所以必须用 sudo 来赋予执行权限
+          sudo chmod +x ./chr_build/milo
 
           # ========================================================
           # 🔥 构建 1：x86 UEFI 现代引导镜像 (vFAT + EF00)
