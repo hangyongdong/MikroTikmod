@@ -286,9 +286,9 @@ jobs:
           
           # 5. 注入系统主体与 Option、Mihomo 包
           sudo mount /dev/nbd0p2 ./chr_build/routeros
-          sudo mkdir -p ./chr_build/routeros/{var/pdb/{system,option,mihomo},boot,rw/disk}
-          sudo cp -v ./all_packages_arm64/option-${VERSION}-${ARCH}.npk ./chr_build/routeros/var/pdb/option/image
-          sudo cp -v ./all_packages_arm64/mihomo-${VERSION}-${ARCH}.npk ./chr_build/routeros/var/pdb/mihomo/image
+          sudo mkdir -p ./chr_build/routeros/{var/pdb/system,boot,rw/disk}
+          # sudo cp -v ./all_packages_arm64/option-${VERSION}-${ARCH}.npk ./chr_build/routeros/var/pdb/option/image
+          # sudo cp -v ./all_packages_arm64/mihomo-${VERSION}-${ARCH}.npk ./chr_build/routeros/var/pdb/mihomo/image
           sudo cp -v ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk ./chr_build/routeros/var/pdb/system/image
           echo -e '#!/bin/sh\n' | sudo tee ./chr_build/routeros/rw/disk/rc.local
           sudo umount /dev/nbd0p2
@@ -408,10 +408,10 @@ jobs:
           sudo umount /dev/nbd0p1
           
           sudo mount /dev/nbd0p2 ./chr_build/ros_uefi
-          sudo mkdir -p ./chr_build/ros_uefi/{var/pdb/{system,option,mihomo},boot,bin,rw/disk}
+          sudo mkdir -p ./chr_build/ros_uefi/{var/pdb/system,boot,bin,rw/disk}
           sudo cp -v ./chr_build/milo ./chr_build/ros_uefi/bin/milo
-          sudo cp -v ./all_packages_x86/option-${VERSION}.npk ./chr_build/ros_uefi/var/pdb/option/image
-          sudo cp -v ./all_packages_x86/mihomo-${VERSION}.npk ./chr_build/ros_uefi/var/pdb/mihomo/image
+          # sudo cp -v ./all_packages_x86/option-${VERSION}.npk ./chr_build/ros_uefi/var/pdb/option/image
+          # sudo cp -v ./all_packages_x86/mihomo-${VERSION}.npk ./chr_build/ros_uefi/var/pdb/mihomo/image
           sudo cp -v ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk ./chr_build/ros_uefi/var/pdb/system/image
           echo -e '#!/bin/sh\n' | sudo tee ./chr_build/ros_uefi/rw/disk/rc.local
           sudo umount /dev/nbd0p2
@@ -465,10 +465,10 @@ jobs:
           sudo umount /dev/nbd0p1
           
           sudo mount /dev/nbd0p2 ./chr_build/ros_legacy
-          sudo mkdir -p ./chr_build/ros_legacy/{var/pdb/{system,option,mihomo},boot,bin,rw/disk}
+          sudo mkdir -p ./chr_build/ros_legacy/{var/pdb/system,boot,bin,rw/disk}
           sudo cp -v ./chr_build/milo ./chr_build/ros_legacy/bin/milo
-          sudo cp -v ./all_packages_x86/option-${VERSION}.npk ./chr_build/ros_legacy/var/pdb/option/image
-          sudo cp -v ./all_packages_x86/mihomo-${VERSION}.npk ./chr_build/ros_legacy/var/pdb/mihomo/image
+          # sudo cp -v ./all_packages_x86/option-${VERSION}.npk ./chr_build/ros_legacy/var/pdb/option/image
+          # sudo cp -v ./all_packages_x86/mihomo-${VERSION}.npk ./chr_build/ros_legacy/var/pdb/mihomo/image
           sudo cp -v ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk ./chr_build/ros_legacy/var/pdb/system/image
           echo -e '#!/bin/sh\n' | sudo tee ./chr_build/ros_legacy/rw/disk/rc.local
           sudo umount /dev/nbd0p2
