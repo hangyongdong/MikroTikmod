@@ -617,6 +617,6 @@ jobs:
           files: |
             all_packages_arm64_${{ env.VERSION }}_patched.zip
             all_packages_x86_${{ env.VERSION }}_patched.zip
-            vps_upload/${{ env.VERSION }}/extra/*.zip
+            vps_upload/extra/${{ env.VERSION }}/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
