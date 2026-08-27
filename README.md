@@ -1,7 +1,7 @@
 
 
 ## 自动patch Mikrotik ARM64和X86以及CHR支持在线升级
-[![Mikrotik Auto Release](https://github.com/hangyongdong/MikroTikmod/actions/workflows/MikroTik_RouterOS_V7_Release.yml/badge.svg)](https://github.com/hangyongdong/MikroTikmod/blob/main/.github/workflows/MikroTik_RouterOS_V7_Release.yml)
+[![Mikrotik Auto Release](https://github.com/hangyongdong/MikroTikmod/actions/workflows/MikroTik_RouterOS_V7.yml/badge.svg)](https://github.com/hangyongdong/MikroTikmod/blob/main/.github/workflows/MikroTik_RouterOS_V7.yml)
 
 ### wifi包patch：
    wifi-qcom-X的wifi-qcom包适用于小米ax1800和ax3600(默认在线升级版本)    
