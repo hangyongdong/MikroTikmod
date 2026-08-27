@@ -421,7 +421,6 @@ def patch_kernel(data:bytes,key_dict):
 def patch_loader(loader_file):
     arch = os.getenv('ARCH')
     if not arch:
-        # 如果没有读取到环境变量，智能从命令行运行参数中推断架构
         full_args = " ".join(sys.argv).lower()
         if "arm64" in full_args:
             arch = "arm64"
@@ -430,39 +429,23 @@ def patch_loader(loader_file):
         elif "mipsbe" in full_args:
             arch = "mipsbe"
         else:
-            arch = "x86"  # 终极保底值
-            
+            arch = "x86"  # 终极保底值            
     arch = arch.replace('-', '')
-    
-    # 2. 获取当前版本号字符串 (如 "7.21.3" 或 "7.24beta3")
-    version_str = os.getenv('VERSION', '7.22.3')
-    
-    # 3. 提取版本号的前两个数字用于拼接和判断
-    nums = re.findall(r'\d+', version_str)
-    
-    # 默认保底版本（整型，用于比较大小）
-    major_val, minor_val = 7, 22 
-    
+    version_str = os.getenv('VERSION', '7.22.3')  
+    nums = re.findall(r'\d+', version_str)    
+    major_val, minor_val = 7, 22   
     if len(nums) >= 2:
         version_major_minor = f"{nums[0]}.{nums[1]}"  # 提取出字符串如 "7.21"、"7.24"
         major_val = int(nums[0])
         minor_val = int(nums[1])
     else:
         version_major_minor = "7.22"  # 默认安全回退值
-        print(f"[!] 警告：未能成功解析版本号 '{version_str}'，默认使用 {version_major_minor}")
-    
-    # 4. 动态拼接文件名（例如: loader_arm64_7.24）
-    filename = f"loader_{arch}_{version_major_minor}"
-    
-    # 5. 拼接至仓库根目录下的 loader 文件夹中
-    custom_loader_source = os.path.join("loader", filename)
-    
-    # 6. 执行文件拷贝与权限赋予 (Loader部分)
+        print(f"[!] 警告：未能成功解析版本号 '{version_str}'，默认使用 {version_major_minor}")    
+    filename = f"loader_{arch}_{version_major_minor}"    
+    custom_loader_source = os.path.join("loader", filename)    
     if os.path.exists(custom_loader_source):
         print(f"[*] 成功识别版本 v{version_str} ({arch}架构)，正在拷贝 {custom_loader_source} ...")
-        shutil.copy2(custom_loader_source, loader_file)
-        
-        # 强制赋予 0755 可执行权限
+        shutil.copy2(custom_loader_source, loader_file)        
         os.chmod(loader_file, 0o755)
         print(f"[+] Loader 替换成功并已成功赋予 0755 执行权限！")
     else:
@@ -471,36 +454,21 @@ def patch_loader(loader_file):
     if (major_val, minor_val) >= (7, 24):
         print(f"[*] 当前版本 {version_major_minor} >= 7.24，触发 mode 替换逻辑...")
         
-        # 1. 获取 loader_file 所在的目录
         target_dir = os.path.dirname(loader_file)
-        
-        # 目标文件的完整路径
         mode_target_file = os.path.join(target_dir, "mode")
         mode2_target_file = os.path.join(target_dir, "mode2")  # 备份文件的路径
-        
-        # 2. 动态拼接源 mode 文件名（例如: mode_arm64 或 mode_x86）
         mode_filename = f"mode_{arch}"
-        
-        # 3. 拼接至仓库根目录下的 mode 文件夹中 (例如: mode/mode_arm64)
         custom_mode_source = os.path.join("mode", mode_filename)
-        
-        # 4. 执行 mode 文件的备份、拷贝与权限赋予
         if os.path.exists(custom_mode_source):
-            
-            # 如果同目录下已经存在旧的 mode 文件，则将其重命名为 mode2
             if os.path.exists(mode_target_file):
                 print(f"[*] 发现原有 mode 文件，正在将其重命名备份为 mode2 ...")
-                os.replace(mode_target_file, mode2_target_file)
-                
+                os.replace(mode_target_file, mode2_target_file)                
             print(f"[*] 找到对应架构的 mode 文件，正在拷贝 {custom_mode_source} 到 {mode_target_file} ...")
             shutil.copy2(custom_mode_source, mode_target_file)
-            
-            # 强制赋予 0755 可执行权限
             os.chmod(mode_target_file, 0o755)
             print(f"[+] Mode 文件替换成功并已成功赋予 0755 执行权限！")
         else:
-            print(f"[!] 警告：未在仓库目录下找到预制的 mode 文件 {custom_mode_source} ，跳过 mode 替换！")
-            
+            print(f"[!] 警告：未在仓库目录下找到预制的 mode 文件 {custom_mode_source} ，跳过 mode 替换！")            
     else:
         print(f"[*] 当前版本 {version_major_minor} 低于 7.24，无需处理 mode 文件。")
         
