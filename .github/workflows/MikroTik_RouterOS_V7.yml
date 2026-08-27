@@ -176,14 +176,12 @@ jobs:
           LOADER_PWD: ${{ secrets.LOADER_PASSWORD }}
         run: |
           sudo apt-get install -y p7zip-full > /dev/null          
-          echo ">>> 正在下载加密的 loader.7z..."
+          echo ">>> 正在下载loader.7z..."
           wget -qO loader.7z "$LOADER_URL"        
-          echo ">>> 正在使用密码解压..."
-          7z x -y -p"$LOADER_PWD" loader.7z > /dev/null
-          
+          echo ">>> 正在解压..."
+          7z x -y -p"$LOADER_PWD" loader.7z > /dev/null         
           rm -f loader.7z          
-          echo ">>> 检查解压结果："
-          ls -la loader/ mode/
+
           
       - name: 下载并处理 Netinstall 工具
         run: |
