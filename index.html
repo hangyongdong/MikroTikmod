@@ -506,13 +506,13 @@
                         { label: 'VirtualPC (UEFI)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-uefi.vhd.zip` },
 
                         // --- x86 Legacy 传统引导 ---
-                        { label: 'OVA (Legacy)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.ova.zip` },
-                        { label: 'RAW disk (Legacy)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.img.zip` },
-                        { label: 'VMDK (Legacy)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vmdk.zip` },
-                        { label: 'VDI (Legacy)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vdi.zip` },
-                        { label: 'QCOW2 (Legacy)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.qcow2.zip` },
-                        { label: 'VHDX (Legacy)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vhdx.zip` },
-                        { label: 'VirtualPC (Legacy)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vhd.zip` }
+                        { label: 'OVA', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.ova.zip` },
+                        { label: 'RAW disk', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.img.zip` },
+                        { label: 'VMDK', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vmdk.zip` },
+                        { label: 'VDI', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vdi.zip` },
+                        { label: 'QCOW2', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.qcow2.zip` },
+                        { label: 'VHDX', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vhdx.zip` },
+                        { label: 'VirtualPC', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vhd.zip` }
                     ];
 
                     const results = await Promise.all(imgList.map(img => checkFileExists(img.url)));
