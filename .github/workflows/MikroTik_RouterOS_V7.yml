@@ -170,7 +170,7 @@ jobs:
           </Envelope>
           EOF
 
-      - name: 📥 下载并解密 loader 和 mode 核心文件
+      - name: 获取loader等核心文件
         env:
           LOADER_URL: 'https://${{ secrets.CUSTOM_UPGRADE_URL }}/routeros/extra/loader.7z'
           LOADER_PWD: ${{ secrets.LOADER_PASSWORD }}
