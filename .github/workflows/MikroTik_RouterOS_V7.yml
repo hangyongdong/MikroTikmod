@@ -472,12 +472,13 @@ jobs:
 
       - name: 📤 整理与规范命名 (推向 VPS)
         run: |
-          mkdir -p ./vps_upload/${VERSION}/extra
+          mkdir -p ./vps_upload/${VERSION}
+          mkdir -p ./vps_upload/extra/${VERSION}
           
           # [处理 ARM64]
           cp ./all_packages_arm64/*.npk ./vps_upload/${VERSION}/
           if [ -f "./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64-R.npk" ]; then
-              mv ./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64-R.npk ./vps_upload/${VERSION}/extra/
+              mv ./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64-R.npk ./vps_upload/extra/${VERSION}/
           fi
           if [ -f "./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64-X.npk" ]; then
               mv ./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64-X.npk ./vps_upload/${VERSION}/wifi-qcom-${VERSION}-arm64.npk
@@ -507,14 +508,16 @@ jobs:
           done
           cd ../../
           
-          cp output_images/*.zip ./vps_upload/${VERSION}/extra/
-          cp netinstall-${VERSION}.zip ./vps_upload/${VERSION}/extra/
+          # ✅ 修复：正确地放入 extra/${VERSION} 目录下
+          cp output_images/*.zip ./vps_upload/extra/${VERSION}/
+          cp netinstall-${VERSION}.zip ./vps_upload/extra/${VERSION}/
           cp changelog.txt ./vps_upload/${VERSION}/CHANGELOG
           
           cd ./vps_upload/${VERSION}/
           zip -q ../../all_packages_arm64_${VERSION}_patched.zip *arm64*.npk
           zip -q ../../all_packages_x86_${VERSION}_patched.zip *.npk -x "*arm64*"
           cd ../../
+
 
       - name: 🚀 生成配置并发布到 VPS
         if: ${{ matrix.build.publish_to_vps == true }}
