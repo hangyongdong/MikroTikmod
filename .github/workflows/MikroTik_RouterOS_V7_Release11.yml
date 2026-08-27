@@ -188,6 +188,7 @@ jobs:
           rm -f chr_arm64.img.zip
           
           # 核心系统包 Patch 与签名
+          sudo apt-get install build-essential binutils-arm-linux-gnueabi -y > /dev/null
           sudo -E python3 patch.py npk ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk
           for f in ./all_packages_arm64/*.npk; do sudo -E python3 npk.py sign "$f" "$f"; done
           
@@ -381,6 +382,7 @@ jobs:
           sudo unzip -q chr_x86.img.zip && mv chr-${VERSION}.img chr_x86.img
           rm -f chr_x86.img.zip
           
+          sudo apt-get install build-essential binutils-arm-linux-gnueabi -y > /dev/null
           sudo -E python3 patch.py npk ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk
           for f in ./all_packages_x86/*.npk; do sudo -E python3 npk.py sign "$f" "$f"; done
           
