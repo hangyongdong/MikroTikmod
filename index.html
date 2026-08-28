@@ -503,7 +503,7 @@
                         { label: 'VDI (BIOS)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vdi.zip` },
                         { label: 'QCOW2 (BIOS)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.qcow2.zip` },
                         { label: 'VHDX (BIOS)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vhdx.zip` },
-                        { label: 'VirtualPC (BIOS)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vhd.zip` }
+                        { label: 'VirtualPC (BIOS)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-legacy-bios.vhd.zip` },
 
                         // --- x86 UEFI 现代引导 ---
                         { label: 'OVA (UEFI)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-uefi.ova.zip` },
@@ -512,7 +512,7 @@
                         { label: 'VDI (UEFI)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-uefi.vdi.zip` },
                         { label: 'QCOW2 (UEFI)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-uefi.qcow2.zip` },
                         { label: 'VHDX (UEFI)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-uefi.vhdx.zip` },
-                        { label: 'VirtualPC (UEFI)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-uefi.vhd.zip` },
+                        { label: 'VirtualPC (UEFI)', url: `${BASE_URL}/extra/${version}/chr-${version}-x86-uefi.vhd.zip` }
                     ];
 
                     const results = await Promise.all(imgList.map(img => checkFileExists(img.url)));
