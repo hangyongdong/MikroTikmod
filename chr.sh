@@ -63,14 +63,13 @@ select_language() {
                 MSG_ADDRESS="IP Address:"
                 MSG_GATEWAY="Gateway:"
                 MSG_DNS="Domain Name Server:"
-                MSG_SELECT_VERSION="Select the version you want to install:"
-                MSG_STABLE="stable (v7)"
-                MSG_TEST="testing (v7)"
-                MSG_LTS="long-term (v7)"
+                MSG_SELECT_VERSION="Select the RouterOS v7 version you want to install:"
+                MSG_STABLE="Stable (v7)"
+                MSG_LTS="Long-Term (v7)"
+                MSG_TEST="Testing (v7)"
                 MSG_PLEASE_CHOOSE="Please choose an option:"
                 MSG_UNSUPPORTED_ARCH="Error: Unsupported architecture: "
                 MSG_INVALID_OPTION="Error: Invalid option!"
-                MSG_ARM64_NOT_SUPPORT_V6="arm64 does not support v6 version for now."
                 MSG_SELECTED_VERSION="Selected version:"
                 MSG_FILE_DOWNLOAD="Download file: "
                 MSG_DOWNLOAD_ERROR="Error: No wget nor curl is installed. Cannot download."
@@ -93,14 +92,13 @@ select_language() {
                 MSG_ADDRESS="IP地址:"
                 MSG_GATEWAY="网关地址:"
                 MSG_DNS="DNS服务器:"
-                MSG_SELECT_VERSION="请选择您要安装的版本:"
-                MSG_STABLE="稳定版 (stable)"
-                MSG_TEST="测试版 (testing)"
-                MSG_LTS="长期支持版 (long-term)"
+                MSG_SELECT_VERSION="请选择您要安装的 RouterOS v7 版本:"
+                MSG_STABLE="稳定版 (Stable)"
+                MSG_LTS="长期支持版 (Long-Term)"
+                MSG_TEST="测试版 (Testing)"
                 MSG_PLEASE_CHOOSE="请选择一个选项:"
                 MSG_UNSUPPORTED_ARCH="错误: 不支持的架构: "
                 MSG_INVALID_OPTION="错误: 无效选项"
-                MSG_ARM64_NOT_SUPPORT_V6="ARM64架构暂不支持安装v6版本"
                 MSG_SELECTED_VERSION="已选择版本:"
                 MSG_FILE_DOWNLOAD="下载文件: "
                 MSG_DOWNLOAD_ERROR="错误: wget 或 curl 都未安装，无法下载文件。"
@@ -190,11 +188,13 @@ extract_zip() {
 }
 
 select_version() {
+    # 如果外部直接传入了 VERSION 环境变量，直接使用
     if [[ -n "$VERSION" ]]; then
-        V7=1
         echo "$MSG_SELECTED_VERSION $VERSION"
         return
     fi
+
+    # 仅保留 v7 版本的频道选择
     while true; do
         echo "$MSG_SELECT_VERSION"
         echo "1. $MSG_STABLE"
@@ -205,15 +205,12 @@ select_version() {
         case $version_choice in
             1) 
                 VERSION=$(http_get "${MIRROR_HOST}/NEWESTa7.stable" | cut -d' ' -f1)
-                V7=1
                 ;;
             2) 
                 VERSION=$(http_get "${MIRROR_HOST}/NEWESTa7.long-term" | cut -d' ' -f1)
-                V7=1
                 ;;
-            3)
+            3) 
                 VERSION=$(http_get "${MIRROR_HOST}/NEWESTa7.testing" | cut -d' ' -f1)
-                V7=1
                 ;;
             *)
                 echo "$MSG_INVALID_OPTION"
@@ -222,7 +219,7 @@ select_version() {
         esac
 
         if [ -z "$VERSION" ]; then
-            echo "错误: 无法获取版本号，请检查网络连接。"
+            echo "错误: 无法从服务器获取版本号，请检查网络连接。"
             exit 1
         fi
 
@@ -263,6 +260,7 @@ create_autorun() {
         sleep 1
         MNT=/tmp/chr
         mkdir -p $MNT
+        # v7 架构固定挂载第二分区
         PARTITION="p2"
         if mount "${LOOP}${PARTITION}" "$MNT"; then
             confirm_address
