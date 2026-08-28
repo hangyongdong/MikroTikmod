@@ -188,19 +188,16 @@ extract_zip() {
 }
 
 select_version() {
-    # 如果外部直接传入了 VERSION 环境变量，直接使用
     if [[ -n "$VERSION" ]]; then
         echo "$MSG_SELECTED_VERSION $VERSION"
         return
     fi
 
-    # 仅保留 v7 版本的频道选择
     while true; do
         echo "$MSG_SELECT_VERSION"
         echo "1. $MSG_STABLE"
         echo "2. $MSG_LTS"
-        echo "3. $MSG_TEST"
-        read -p "$MSG_PLEASE_CHOOSE [1-3]: " version_choice
+        read -p "$MSG_PLEASE_CHOOSE [1-2]: " version_choice
         
         case $version_choice in
             1) 
@@ -208,9 +205,6 @@ select_version() {
                 ;;
             2) 
                 VERSION=$(http_get "${MIRROR_HOST}/NEWESTa7.long-term" | cut -d' ' -f1)
-                ;;
-            3) 
-                VERSION=$(http_get "${MIRROR_HOST}/NEWESTa7.testing" | cut -d' ' -f1)
                 ;;
             *)
                 echo "$MSG_INVALID_OPTION"
@@ -260,7 +254,6 @@ create_autorun() {
         sleep 1
         MNT=/tmp/chr
         mkdir -p $MNT
-        # v7 架构固定挂载第二分区
         PARTITION="p2"
         if mount "${LOOP}${PARTITION}" "$MNT"; then
             confirm_address
