@@ -574,6 +574,23 @@
                             </div>
                         </div>`;
                 }
+
+                if (currentArch === 'chr') {
+                    moreHtml += `
+                        <div>
+                            <span class="flex items-center text-sm text-black mb-2 mt-4 font-mono">
+                                <i class="fa-solid fa-terminal mr-3 text-black w-4 text-center"></i> Install Command:
+                            </span>
+                            <div class="pl-7">
+                                <div class="relative bg-white border border-gray-300 p-2 flex items-center justify-between group hover:border-gray-400 transition-colors w-full">
+                                    <code class="text-[10.5px] text-gray-700 font-mono break-all pr-7 select-all leading-tight">wget -qO chr.sh https://routeros.ydhang.cn/extra/chr.sh &amp;&amp; bash chr.sh</code>
+                                    <button onclick="navigator.clipboard.writeText('wget -qO chr.sh https://routeros.ydhang.cn/extra/chr.sh && bash chr.sh'); const i=this.querySelector('i'); i.className='fa-solid fa-check text-black'; setTimeout(()=>i.className='fa-regular fa-copy', 2000);" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition-colors bg-white pl-1" title="Copy to clipboard">
+                                        <i class="fa-regular fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                }
                 
                 moreHtml += `
                         <div>
