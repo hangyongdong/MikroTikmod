@@ -144,104 +144,6 @@ jobs:
           sudo modprobe nbd
           mkdir -p output_images
 
-      - name: 生成公用 OVF 虚拟机模板
-        run: |
-          cat << 'EOF' > template.ovf
-          <?xml version="1.0" encoding="UTF-8"?>
-          <Envelope vmw:buildId="build-18663434" xmlns="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-            <References>
-              <File ovf:href="{VMDK_FILE}" ovf:id="file1" ovf:size="{FILE_SIZE}"/>
-            </References>
-            <DiskSection>
-              <Info>Virtual disk information</Info>
-              <Disk ovf:capacity="128" ovf:capacityAllocationUnits="byte * 2^20" ovf:diskId="vmdisk1" ovf:fileRef="file1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/>
-            </DiskSection>
-            <NetworkSection>
-              <Info>The list of logical networks</Info>
-              <Network ovf:name="VM Network">
-                <Description>The VM Network network</Description>
-              </Network>
-            </NetworkSection>
-            <VirtualSystem ovf:id="vm">
-              <Info>A virtual machine</Info>
-              <Name>MikroTik_RouterOS_CHR</Name>
-              <OperatingSystemSection ovf:id="100" vmw:osType="other3xLinux64Guest">
-                <Info>The kind of installed guest operating system</Info>
-              </OperatingSystemSection>
-              <VirtualHardwareSection>
-                <Info>Virtual hardware requirements</Info>
-                <System>
-                  <vssd:ElementName>Virtual Hardware Family</vssd:ElementName>
-                  <vssd:InstanceID>0</vssd:InstanceID>
-                  <vssd:VirtualSystemIdentifier>MikroTik_RouterOS_CHR</vssd:VirtualSystemIdentifier>
-                  <vssd:VirtualSystemType>vmx-10</vssd:VirtualSystemType>
-                </System>
-                <Item>
-                  <rasd:AllocationUnits>hertz * 10^6</rasd:AllocationUnits>
-                  <rasd:Description>Number of Virtual CPUs</rasd:Description>
-                  <rasd:ElementName>1 virtual CPU(s)</rasd:ElementName>
-                  <rasd:InstanceID>1</rasd:InstanceID>
-                  <rasd:ResourceType>3</rasd:ResourceType>
-                  <rasd:VirtualQuantity>1</rasd:VirtualQuantity>
-                </Item>
-                <Item>
-                  <rasd:AllocationUnits>byte * 2^20</rasd:AllocationUnits>
-                  <rasd:Description>Memory Size</rasd:Description>
-                  <rasd:ElementName>1024MB of memory</rasd:ElementName>
-                  <rasd:InstanceID>2</rasd:InstanceID>
-                  <rasd:ResourceType>4</rasd:ResourceType>
-                  <rasd:VirtualQuantity>1024</rasd:VirtualQuantity>
-                </Item>
-                <Item>
-                  <rasd:Address>0</rasd:Address>
-                  <rasd:Description>IDE Controller</rasd:Description>
-                  <rasd:ElementName>ideController0</rasd:ElementName>
-                  <rasd:InstanceID>3</rasd:InstanceID>
-                  <rasd:ResourceType>5</rasd:ResourceType>
-                </Item>
-                <Item>
-                  <rasd:AddressOnParent>0</rasd:AddressOnParent>
-                  <rasd:ElementName>disk0</rasd:ElementName>
-                  <rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource>
-                  <rasd:InstanceID>4</rasd:InstanceID>
-                  <rasd:Parent>3</rasd:Parent>
-                  <rasd:ResourceType>17</rasd:ResourceType>
-                </Item>
-                <Item>
-                  <rasd:AddressOnParent>1</rasd:AddressOnParent>
-                  <rasd:AutomaticAllocation>true</rasd:AutomaticAllocation>
-                  <rasd:Connection>VM Network</rasd:Connection>
-                  <rasd:Description>VmxNet3 ethernet adapter on &quot;VM Network&quot;</rasd:Description>
-                  <rasd:ElementName>ethernet0</rasd:ElementName>
-                  <rasd:InstanceID>5</rasd:InstanceID>
-                  <rasd:ResourceSubType>VmxNet3</rasd:ResourceSubType>
-                  <rasd:ResourceType>10</rasd:ResourceType>
-                  <vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="160"/>
-                  <vmw:Config ovf:required="false" vmw:key="connectable.allowGuestControl" vmw:value="true"/>
-                </Item>
-                <Item ovf:required="false">
-                  <rasd:AutomaticAllocation>false</rasd:AutomaticAllocation>
-                  <rasd:ElementName>video</rasd:ElementName>
-                  <rasd:InstanceID>6</rasd:InstanceID>
-                  <rasd:ResourceType>24</rasd:ResourceType>
-                </Item>
-                <Item ovf:required="false">
-                  <rasd:AutomaticAllocation>false</rasd:AutomaticAllocation>
-                  <rasd:ElementName>vmci</rasd:ElementName>
-                  <rasd:InstanceID>7</rasd:InstanceID>
-                  <rasd:ResourceSubType>vmware.vmci</rasd:ResourceSubType>
-                  <rasd:ResourceType>1</rasd:ResourceType>
-                </Item>
-                <vmw:Config ovf:required="false" vmw:key="firmware" vmw:value="{FIRMWARE_TYPE}"/>
-              </VirtualHardwareSection>
-              <AnnotationSection ovf:required="false">
-                <Info>A human-readable annotation</Info>
-                <Annotation>MikroTik RouterOS CHR</Annotation>
-              </AnnotationSection>
-            </VirtualSystem>
-          </Envelope>
-          EOF
-
       - name: 创建 CHR 镜像构建核心函数 (复用模块)
         run: |
           cat << 'EOF' > build_funcs.sh
@@ -303,7 +205,7 @@ jobs:
               sudo mkfs.ext4 -F -m 0 -L "RouterOS" /dev/nbd0p2
               sudo mkdir -p ./chr_build/routeros
               sudo mount /dev/nbd0p2 ./chr_build/routeros
-              # 仅创建系统目录，保持纯净系统
+              
               sudo mkdir -p ./chr_build/routeros/{var/pdb/system,boot,bin,rw/disk}
               
               if [ "$ARCH" == "x86" ]; then
@@ -311,15 +213,15 @@ jobs:
                   sudo install -m 0755 ./chr_build/bash ./chr_build/routeros/bin/bash
               fi
               
-              # 只复制系统核心包 (剔除 Option 和 Mihomo)
               sudo cp -v "$SYS_NPK" ./chr_build/routeros/var/pdb/system/image
-              
               printf '%s\n' '#!/bin/sh' '# This script will be executed *before* RouterOS *loader* start.' | sudo tee ./chr_build/routeros/rw/disk/rc.local >/dev/null
               
               sudo umount ./chr_build/routeros
               sudo qemu-nbd -d /dev/nbd0
 
-              # 镜像格式转换与 OVA 打包
+              # ==========================================
+              # 🌟 终极无损 OVA 封装逻辑 (严格遵循 VMware 规范)
+              # ==========================================
               local IMAGE_PREFIX="${IMAGE%.img}"
               qemu-img convert -f raw -O qcow2 "$IMAGE" "$IMAGE_PREFIX.qcow2"
               qemu-img convert -f raw -O vmdk  "$IMAGE" "$IMAGE_PREFIX.vmdk"
@@ -332,11 +234,114 @@ jobs:
               local OVF_FILE="$IMAGE_NAME.ovf"
               local OVA_FILE="$IMAGE_NAME.ova"
 
-              qemu-img convert -f raw -O vmdk -o subformat=streamOptimized "$IMAGE" "$VMDK_FILE"
-              local FILE_SIZE=$(stat -c %s "$VMDK_FILE")
-              sed -e "s|{VMDK_FILE}|$VMDK_FILE|g" -e "s|{FILE_SIZE}|$FILE_SIZE|g" -e "s|{FIRMWARE_TYPE}|$BOOT_MODE|g" template.ovf > "$OVF_FILE"
-              tar -cf "$OVA_FILE" "$OVF_FILE" "$VMDK_FILE"
-              rm -f "$VMDK_FILE" "$OVF_FILE"
+              # 1. 建立独立的沙盒打包目录，防止任何路径污染
+              mkdir -p "./ova_tmp_$IMAGE_NAME"
+              
+              qemu-img convert -f raw -O vmdk -o subformat=streamOptimized "$IMAGE" "./ova_tmp_$IMAGE_NAME/$VMDK_FILE"
+              local FILE_SIZE=$(stat -c %s "./ova_tmp_$IMAGE_NAME/$VMDK_FILE")
+
+              # 2. 原生 Bash 变量注入，生成一字不差的 OVF XML
+              cat << INNER_EOF > "./ova_tmp_$IMAGE_NAME/$OVF_FILE"
+              <?xml version="1.0" encoding="UTF-8"?>
+              <Envelope vmw:buildId="build-18663434" xmlns="http://schemas.dmtf.org/ovf/envelope/1" xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common" xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1" xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData" xmlns:vmw="http://www.vmware.com/schema/ovf" xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                <References>
+                  <File ovf:href="$VMDK_FILE" ovf:id="file1" ovf:size="$FILE_SIZE"/>
+                </References>
+                <DiskSection>
+                  <Info>Virtual disk information</Info>
+                  <Disk ovf:capacity="128" ovf:capacityAllocationUnits="byte * 2^20" ovf:diskId="vmdisk1" ovf:fileRef="file1" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"/>
+                </DiskSection>
+                <NetworkSection>
+                  <Info>The list of logical networks</Info>
+                  <Network ovf:name="VM Network">
+                    <Description>The VM Network network</Description>
+                  </Network>
+                </NetworkSection>
+                <VirtualSystem ovf:id="vm">
+                  <Info>A virtual machine</Info>
+                  <Name>MikroTik_RouterOS_CHR</Name>
+                  <OperatingSystemSection ovf:id="100" vmw:osType="other3xLinux64Guest">
+                    <Info>The kind of installed guest operating system</Info>
+                  </OperatingSystemSection>
+                  <VirtualHardwareSection>
+                    <Info>Virtual hardware requirements</Info>
+                    <System>
+                      <vssd:ElementName>Virtual Hardware Family</vssd:ElementName>
+                      <vssd:InstanceID>0</vssd:InstanceID>
+                      <vssd:VirtualSystemIdentifier>MikroTik_RouterOS_CHR</vssd:VirtualSystemIdentifier>
+                      <vssd:VirtualSystemType>vmx-10</vssd:VirtualSystemType>
+                    </System>
+                    <Item>
+                      <rasd:AllocationUnits>hertz * 10^6</rasd:AllocationUnits>
+                      <rasd:Description>Number of Virtual CPUs</rasd:Description>
+                      <rasd:ElementName>1 virtual CPU(s)</rasd:ElementName>
+                      <rasd:InstanceID>1</rasd:InstanceID>
+                      <rasd:ResourceType>3</rasd:ResourceType>
+                      <rasd:VirtualQuantity>1</rasd:VirtualQuantity>
+                    </Item>
+                    <Item>
+                      <rasd:AllocationUnits>byte * 2^20</rasd:AllocationUnits>
+                      <rasd:Description>Memory Size</rasd:Description>
+                      <rasd:ElementName>1024MB of memory</rasd:ElementName>
+                      <rasd:InstanceID>2</rasd:InstanceID>
+                      <rasd:ResourceType>4</rasd:ResourceType>
+                      <rasd:VirtualQuantity>1024</rasd:VirtualQuantity>
+                    </Item>
+                    <Item>
+                      <rasd:Address>0</rasd:Address>
+                      <rasd:Description>IDE Controller</rasd:Description>
+                      <rasd:ElementName>ideController0</rasd:ElementName>
+                      <rasd:InstanceID>3</rasd:InstanceID>
+                      <rasd:ResourceType>5</rasd:ResourceType>
+                    </Item>
+                    <Item>
+                      <rasd:AddressOnParent>0</rasd:AddressOnParent>
+                      <rasd:ElementName>disk0</rasd:ElementName>
+                      <rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource>
+                      <rasd:InstanceID>4</rasd:InstanceID>
+                      <rasd:Parent>3</rasd:Parent>
+                      <rasd:ResourceType>17</rasd:ResourceType>
+                    </Item>
+                    <Item>
+                      <rasd:AddressOnParent>1</rasd:AddressOnParent>
+                      <rasd:AutomaticAllocation>true</rasd:AutomaticAllocation>
+                      <rasd:Connection>VM Network</rasd:Connection>
+                      <rasd:Description>VmxNet3 ethernet adapter on &quot;VM Network&quot;</rasd:Description>
+                      <rasd:ElementName>ethernet0</rasd:ElementName>
+                      <rasd:InstanceID>5</rasd:InstanceID>
+                      <rasd:ResourceSubType>VmxNet3</rasd:ResourceSubType>
+                      <rasd:ResourceType>10</rasd:ResourceType>
+                      <vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="160"/>
+                      <vmw:Config ovf:required="false" vmw:key="connectable.allowGuestControl" vmw:value="true"/>
+                    </Item>
+                    <Item ovf:required="false">
+                      <rasd:AutomaticAllocation>false</rasd:AutomaticAllocation>
+                      <rasd:ElementName>video</rasd:ElementName>
+                      <rasd:InstanceID>6</rasd:InstanceID>
+                      <rasd:ResourceType>24</rasd:ResourceType>
+                    </Item>
+                    <Item ovf:required="false">
+                      <rasd:AutomaticAllocation>false</rasd:AutomaticAllocation>
+                      <rasd:ElementName>vmci</rasd:ElementName>
+                      <rasd:InstanceID>7</rasd:InstanceID>
+                      <rasd:ResourceSubType>vmware.vmci</rasd:ResourceSubType>
+                      <rasd:ResourceType>1</rasd:ResourceType>
+                    </Item>
+                    <vmw:Config ovf:required="false" vmw:key="firmware" vmw:value="$BOOT_MODE"/>
+                  </VirtualHardwareSection>
+                  <AnnotationSection ovf:required="false">
+                    <Info>A human-readable annotation</Info>
+                    <Annotation>MikroTik RouterOS CHR</Annotation>
+                  </AnnotationSection>
+                </VirtualSystem>
+              </Envelope>
+              INNER_EOF
+
+              # 3. 强制使用严格的 ustar 格式打包，并且保证处于文件夹内部环境
+              (cd "./ova_tmp_$IMAGE_NAME" && tar --format=ustar -cf "../$OVA_FILE" "$OVF_FILE" "$VMDK_FILE")
+              rm -rf "./ova_tmp_$IMAGE_NAME"
+
+              # ==========================================
 
               # 整理文件压缩
               mv "$IMAGE_PREFIX".* ./output_images/
