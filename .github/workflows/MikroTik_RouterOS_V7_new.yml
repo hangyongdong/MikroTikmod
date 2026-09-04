@@ -2,7 +2,7 @@ name: MikroTik RouterOS V7 NEW
 
 on:
   schedule:
-    - cron: '39 10 * * *'
+    #- cron: '39 10 * * *'
   workflow_dispatch:
     inputs:
       version:
