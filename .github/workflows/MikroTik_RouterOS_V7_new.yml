@@ -259,11 +259,11 @@ jobs:
               local OVF_FILE="$IMAGE_NAME.ovf"
               local OVA_FILE="$IMAGE_NAME.ova"
 
-              qemu-img convert -f raw -O vmdk -o subformat=streamOptimized "$IMAGE" "./$VMDK_FILE"
-              local FILE_SIZE=$(stat -c %s "./$VMDK_FILE")
-              sed -e "s|{VMDK_FILE}|$VMDK_FILE|g" -e "s|{FILE_SIZE}|$FILE_SIZE|g" -e "s|{FIRMWARE_TYPE}|$BOOT_MODE|g" template.ovf > "./$OVF_FILE"
-              tar -cvf "./$OVA_FILE" "./$OVF_FILE" "./$VMDK_FILE"
-              rm -f "./$VMDK_FILE" "./$OVF_FILE"
+              qemu-img convert -f raw -O vmdk -o subformat=streamOptimized "$IMAGE" "$VMDK_FILE"
+              local FILE_SIZE=$(stat -c %s "$VMDK_FILE")
+              sed -e "s|{VMDK_FILE}|$VMDK_FILE|g" -e "s|{FILE_SIZE}|$FILE_SIZE|g" -e "s|{FIRMWARE_TYPE}|$BOOT_MODE|g" template.ovf > "$OVF_FILE"
+              tar -cf "$OVA_FILE" "$OVF_FILE" "$VMDK_FILE"
+              rm -f "$VMDK_FILE" "$OVF_FILE"
 
               # 整理文件压缩
               mv "$IMAGE_PREFIX".* ./output_images/
