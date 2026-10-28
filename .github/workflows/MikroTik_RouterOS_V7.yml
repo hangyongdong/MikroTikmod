@@ -141,7 +141,8 @@ jobs:
           sudo apt-get update
           # 增加底层磁盘挂载、分区、格式化与引导注入工具
           sudo apt-get install -y zip unzip wget curl squashfs-tools python3-pip qemu-utils gdisk rsync jq parted isolinux syslinux syslinux-common xorriso dosfstools xxd binutils-arm-linux-gnueabi
-          sudo pip3 install pefile pyelftools
+          pip3 install --upgrade pip
+          pip3 install pefile==2024.8.26 pyelftools==0.31
           sudo modprobe nbd
           mkdir -p output_images
 
@@ -189,7 +190,6 @@ jobs:
           sudo wget -nv -O netinstall.zip "https://download.mikrotik.com/routeros/${VERSION}/netinstall-${VERSION}.zip"
           unzip -q netinstall.zip
           if [ -f "./netinstall/netinstall" ]; then sudo chmod +x ./netinstall/netinstall; fi
-          python3 -m pip install pefile==2024.8.26
           python3 patch.py netinstall netinstall.exe
           zip -q netinstall-${VERSION}.zip ./netinstall.exe
 
