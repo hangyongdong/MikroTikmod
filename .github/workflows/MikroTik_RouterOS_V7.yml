@@ -221,7 +221,7 @@ jobs:
           fi
           
           # Mihomo 编译与证书注入
-          sudo mkdir -p ./option-root/bin/ ./mihomo-root/bin/ ./mihomo-root/certs
+          mkdir -p ./option-root/bin/ ./mihomo-root/bin/ ./mihomo-root/certs
           git clone --depth 1 -b Meta https://github.com/MetaCubeX/mihomo.git mihomo_src
           python3 patch_mihomo_path.py ./mihomo_src/constant/path.go
           cd mihomo_src
