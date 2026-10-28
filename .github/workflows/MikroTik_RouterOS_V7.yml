@@ -187,11 +187,11 @@ jobs:
         run: |
           curl -sL "https://download.mikrotik.com/routeros/${VERSION}/CHANGELOG" > changelog.txt
           sudo wget -nv -O netinstall.zip "https://download.mikrotik.com/routeros/${VERSION}/netinstall-${VERSION}.zip"
-          sudo unzip -q netinstall.zip
+          unzip -q netinstall.zip
           if [ -f "./netinstall/netinstall" ]; then sudo chmod +x ./netinstall/netinstall; fi
           python3 -m pip install pefile==2024.8.26
           python3 patch.py netinstall netinstall.exe
-          sudo zip -q netinstall-${VERSION}.zip ./netinstall.exe
+          zip -q netinstall-${VERSION}.zip ./netinstall.exe
 
       # ==========================================
       # 🌟 核心优化：ARM64 架构 (全盘生成、挂载注入、全格式导出)
@@ -202,7 +202,7 @@ jobs:
           mkdir -p ./all_packages_arm64
           wget -q "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}-${ARCH}.npk" -O "./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk"
           wget -q "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
-          sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_arm64/
+          unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_arm64/
           
           # NPK 签名与分离 (保留你原有的精髓逻辑)
           python3 patch.py npk ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk
@@ -326,7 +326,7 @@ jobs:
               wget -q "https://download.mikrotik.com/routeros/${VERSION}/routeros-${VERSION}.npk" -O "./all_packages_x86/routeros-${VERSION}-${ARCH}.npk"
           fi
           wget -q "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
-          sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_x86/
+          unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_x86/
           
           # Patch 与签名
           python3 patch.py npk ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk
