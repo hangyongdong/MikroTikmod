@@ -206,7 +206,7 @@ jobs:
           
           # NPK 签名与分离 (保留你原有的精髓逻辑)
           python3 patch.py npk ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk
-          for f in ./all_packages_arm64/*.npk; do sudo python3 npk.py sign "$f" "$f"; done
+          for f in ./all_packages_arm64/*.npk; do python3 npk.py sign "$f" "$f"; done
           WIFI_FILE="./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}.npk"
           if [ -f "$WIFI_FILE" ]; then
               python3 roswifi.py -i "$WIFI_FILE" -b ./bdwlanX ./bdwlanR -o "./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}-X.npk" "./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}-R.npk"
@@ -330,7 +330,7 @@ jobs:
           
           # Patch 与签名
           python3 patch.py npk ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk
-          for f in ./all_packages_x86/*.npk; do sudo python3 npk.py sign "$f" "$f"; done
+          for f in ./all_packages_x86/*.npk; do python3 npk.py sign "$f" "$f"; done
           
           # Netinstall 注入
           NET_NPK=$(find ./all_packages_x86 -name "netinstall-*.npk" | head -n 1)
