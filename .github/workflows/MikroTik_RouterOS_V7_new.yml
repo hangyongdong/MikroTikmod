@@ -374,7 +374,7 @@ jobs:
           sudo wget -nv -O netinstall.zip "https://download.mikrotik.com/routeros/${VERSION}/netinstall-${VERSION}.zip"
           sudo unzip -q netinstall.zip
           if [ -f "./netinstall/netinstall" ]; then sudo chmod +x ./netinstall/netinstall; fi
-          sudo -E python3 patch.py netinstall netinstall.exe
+          sudo python3 patch.py netinstall netinstall.exe
           sudo zip -q netinstall-${VERSION}.zip ./netinstall.exe
 
       # ==========================================
@@ -388,18 +388,18 @@ jobs:
           wget -q "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
           sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_arm64/
           
-          sudo -E python3 patch.py npk ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk
-          for f in ./all_packages_arm64/*.npk; do sudo -E python3 npk.py sign "$f" "$f"; done
+          sudo  python3 patch.py npk ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk
+          for f in ./all_packages_arm64/*.npk; do sudo python3 npk.py sign "$f" "$f"; done
           WIFI_FILE="./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}.npk"
           if [ -f "$WIFI_FILE" ]; then
-              sudo -E python3 roswifi.py -i "$WIFI_FILE" -b ./bdwlanX ./bdwlanR -o "./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}-X.npk" "./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}-R.npk"
+              sudo python3 roswifi.py -i "$WIFI_FILE" -b ./bdwlanX ./bdwlanR -o "./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}-X.npk" "./all_packages_arm64/wifi-qcom-${VERSION}-${ARCH}-R.npk"
               sudo rm -f "$WIFI_FILE" "./all_packages_arm64/wireless-${VERSION}-${ARCH}.npk" "./all_packages_arm64/wifi-qcom-be-${VERSION}-${ARCH}.npk"
           fi
           
           NET_NPK="./all_packages_arm64/netinstall-${VERSION}-${ARCH}.npk"
           if [ -f "$NET_NPK" ] && [ -f "./netinstall/netinstall_arm64" ]; then
               mkdir -p ./tmp_net_arm64 && cp ./netinstall/netinstall_arm64 ./tmp_net_arm64/netinstall && sudo chmod +x ./tmp_net_arm64/netinstall
-              sudo -E python3 roswifi.py -i "$NET_NPK" --src ./tmp_net_arm64 -o "$NET_NPK" --target nova/bin && rm -rf ./tmp_net_arm64
+              sudo python3 roswifi.py -i "$NET_NPK" --src ./tmp_net_arm64 -o "$NET_NPK" --target nova/bin && rm -rf ./tmp_net_arm64
           fi
           
           sudo mkdir -p ./option-root/bin/ ./mihomo-root/bin/ ./mihomo-root/certs
@@ -422,16 +422,16 @@ jobs:
           TEMPLATE_NPK=$(find ./all_packages_${ARCH} -name "gps-*.npk" | head -n 1)
           sudo mksquashfs option-root option.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
           sudo mksquashfs mihomo-root mihomo.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
-          sudo -E python3 npk.py create "$TEMPLATE_NPK" "./all_packages_${ARCH}/option-${VERSION}-${ARCH}.npk" option ./option.sfs -desc="Busybox arm64"
-          sudo -E python3 npk.py create "$TEMPLATE_NPK" "./all_packages_${ARCH}/mihomo-${VERSION}-${ARCH}.npk" mihomo ./mihomo.sfs -desc="Mihomo core"
+          sudo python3 npk.py create "$TEMPLATE_NPK" "./all_packages_${ARCH}/option-${VERSION}-${ARCH}.npk" option ./option.sfs -desc="Busybox arm64"
+          sudo python3 npk.py create "$TEMPLATE_NPK" "./all_packages_${ARCH}/mihomo-${VERSION}-${ARCH}.npk" mihomo ./mihomo.sfs -desc="Mihomo core"
           
           # ==================================
           # 🌟 函数化构建 ARM64 虚拟机镜像
           # ==================================
           source ./build_funcs.sh
           mkdir -p ./chr_build
-          sudo -E python3 npk.py extract ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk boot/kernel ./chr_build/kernel
-          sudo -E python3 patch.py buildefi ./chr_build/kernel ./chr_build/BOOTAA64.EFI
+          sudo python3 npk.py extract ./all_packages_arm64/routeros-${VERSION}-${ARCH}.npk boot/kernel ./chr_build/kernel
+          sudo python3 patch.py buildefi ./chr_build/kernel ./chr_build/BOOTAA64.EFI
           rm -f ./chr_build/kernel
           
           echo ">>> Creating CHR image for arm64 UEFI..."
@@ -453,13 +453,13 @@ jobs:
           wget -q "https://download.mikrotik.com/routeros/${VERSION}/all_packages-${ARCH}-${VERSION}.zip"
           sudo unzip -q all_packages-${ARCH}-${VERSION}.zip -d ./all_packages_x86/
           
-          sudo -E python3 patch.py npk ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk
-          for f in ./all_packages_x86/*.npk; do sudo -E python3 npk.py sign "$f" "$f"; done
+          sudo python3 patch.py npk ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk
+          for f in ./all_packages_x86/*.npk; do sudo python3 npk.py sign "$f" "$f"; done
           
           NET_NPK=$(find ./all_packages_x86 -name "netinstall-*.npk" | head -n 1)
           if [ -n "$NET_NPK" ] && [ -f "./netinstall/netinstall_x86" ]; then
               mkdir -p ./tmp_net_x86 && cp ./netinstall/netinstall_x86 ./tmp_net_x86/netinstall && sudo chmod +x ./tmp_net_x86/netinstall
-              sudo -E python3 roswifi.py -i "$NET_NPK" --src ./tmp_net_x86 -o "$NET_NPK" --target nova/bin && rm -rf ./tmp_net_x86
+              sudo python3 roswifi.py -i "$NET_NPK" --src ./tmp_net_x86 -o "$NET_NPK" --target nova/bin && rm -rf ./tmp_net_x86
           fi
           
           sudo mkdir -p ./option-root/bin/ ./mihomo-root/bin/ ./mihomo-root/certs
@@ -483,18 +483,18 @@ jobs:
           sudo rm -f option.sfs mihomo.sfs 
           sudo mksquashfs option-root option.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
           sudo mksquashfs mihomo-root mihomo.sfs -quiet -comp xz -no-xattrs -b 256k -all-root
-          sudo -E python3 npk.py create "$TEMPLATE_NPK" "./all_packages_x86/option-${VERSION}.npk" option ./option.sfs -desc="Busybox x86"
-          sudo -E python3 npk.py create "$TEMPLATE_NPK" "./all_packages_x86/mihomo-${VERSION}.npk" mihomo ./mihomo.sfs -desc="Mihomo core"
+          sudo python3 npk.py create "$TEMPLATE_NPK" "./all_packages_x86/option-${VERSION}.npk" option ./option.sfs -desc="Busybox x86"
+          sudo python3 npk.py create "$TEMPLATE_NPK" "./all_packages_x86/mihomo-${VERSION}.npk" mihomo ./mihomo.sfs -desc="Mihomo core"
 
           # ==================================
           # 🌟 函数化构建 X86 虚拟机双格式镜像
           # ==================================
           source ./build_funcs.sh
           mkdir -p ./chr_build
-          sudo -E python3 npk.py extract ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk boot/EFI/BOOT/BOOTX64.EFI ./chr_build/BOOTX64.EFI
-          sudo -E python3 npk.py extract ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk bin/milo ./chr_build/milo
+          sudo python3 npk.py extract ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk boot/EFI/BOOT/BOOTX64.EFI ./chr_build/BOOTX64.EFI
+          sudo python3 npk.py extract ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk bin/milo ./chr_build/milo
           # 提取原生 Bash 注入系统底层
-          sudo -E python3 npk.py extract ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk bin/bash ./chr_build/bash
+          sudo python3 npk.py extract ./all_packages_x86/routeros-${VERSION}-${ARCH}.npk bin/bash ./chr_build/bash
           sudo chmod +x ./chr_build/milo ./chr_build/bash
 
           echo ">>> Creating CHR image for x86 UEFI..."
