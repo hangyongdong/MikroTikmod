@@ -189,6 +189,7 @@ jobs:
           sudo wget -nv -O netinstall.zip "https://download.mikrotik.com/routeros/${VERSION}/netinstall-${VERSION}.zip"
           sudo unzip -q netinstall.zip
           if [ -f "./netinstall/netinstall" ]; then sudo chmod +x ./netinstall/netinstall; fi
+          python3 -m pip install pefile==2024.8.26
           python3 patch.py netinstall netinstall.exe
           sudo zip -q netinstall-${VERSION}.zip ./netinstall.exe
 
